@@ -653,12 +653,12 @@ export default function Home() {
       <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full blur-[160px] pointer-events-none -z-10 animate-pulse-subtle" style={{ background: 'oklch(0.72 0.08 175 / 0.06)' }}></div>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl px-4 py-3 sm:px-6" style={{ background: 'oklch(0.10 0.005 260 / 0.85)', borderBottom: '1px solid var(--border)' }}>
+      <header className="sticky top-0 z-40 backdrop-blur-xl px-4 py-3 sm:px-6" style={{ background: 'rgba(0, 0, 0, 0.85)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={resetAll}>
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg) brightness(1.5)', mixBlendMode: 'screen' }} alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg) brightness(1.2)' }} alt="TrueForm Logo" />
             </div>
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
               True<span style={{ color: 'var(--accent)' }}>Form</span>
@@ -686,12 +686,12 @@ export default function Home() {
         {/* LANDING STATE */}
         {appState === "landing" && (
           <div className="w-full flex flex-col items-center text-center py-8 animate-fade-in">
-            {/* Icon mark */}
-            <div className="mb-8 w-16 h-16 rounded-3xl overflow-hidden shrink-0 mx-auto flex items-center justify-center relative">
+            {/* Icon mark - large, floating, no border */}
+            <div className="mb-6 w-24 h-24 shrink-0 mx-auto relative flex items-center justify-center">
               {/* Subtle glow behind logo */}
-              <div className="absolute inset-0 rounded-full blur-xl opacity-50" style={{ background: 'var(--accent)' }}></div>
+              <div className="absolute inset-0 rounded-full blur-[30px] opacity-20" style={{ background: 'var(--accent)' }}></div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-[120%] h-[120%] object-contain relative z-10" style={{ filter: 'hue-rotate(-140deg) brightness(1.5)', mixBlendMode: 'screen' }} alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-full h-full object-contain relative z-10" style={{ filter: 'hue-rotate(-140deg) brightness(1.2)' }} alt="TrueForm Logo" />
             </div>
 
             {/* Badge — static, no pulse */}

@@ -3,8 +3,8 @@
 @layer base {
   :root {
     /* Clinical Precision — OKLCH Color System */
-    --bg:          oklch(0.10 0.005 260);
-    --surface:     oklch(0.14 0.005 260);
+    --bg:          #000000;
+    --surface:     oklch(0.12 0.005 260);
     --surface-alt: oklch(0.17 0.005 260);
     --border:      oklch(0.22 0.005 260);
     --border-hover:oklch(0.30 0.005 260);
