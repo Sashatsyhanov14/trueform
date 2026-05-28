@@ -686,13 +686,7 @@ export default function Home() {
         {/* LANDING STATE */}
         {appState === "landing" && (
           <div className="w-full flex flex-col items-center text-center py-8 animate-fade-in">
-            {/* Icon mark - large, floating, no border */}
-            <div className="mb-6 w-24 h-24 shrink-0 mx-auto relative flex items-center justify-center">
-              {/* Subtle glow behind logo */}
-              <div className="absolute inset-0 rounded-full blur-[30px] opacity-20" style={{ background: 'var(--accent)' }}></div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-contain relative z-10" style={{ filter: 'hue-rotate(-140deg) brightness(1.2)' }} alt="TrueForm Logo" />
-            </div>
+
 
             {/* Badge — static, no pulse */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-6" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid oklch(0.72 0.14 175 / 0.15)' }}>
