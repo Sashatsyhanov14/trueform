@@ -658,7 +658,7 @@ export default function Home() {
           <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={resetAll}>
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg)' }} alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg) brightness(1.5)', mixBlendMode: 'screen' }} alt="TrueForm Logo" />
             </div>
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
               True<span style={{ color: 'var(--accent)' }}>Form</span>
@@ -687,9 +687,11 @@ export default function Home() {
         {appState === "landing" && (
           <div className="w-full flex flex-col items-center text-center py-8 animate-fade-in">
             {/* Icon mark */}
-            <div className="mb-8 w-16 h-16 rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(45,212,191,0.15)] shrink-0 mx-auto" style={{ border: '1px solid oklch(0.72 0.14 175 / 0.2)' }}>
+            <div className="mb-8 w-16 h-16 rounded-3xl overflow-hidden shrink-0 mx-auto flex items-center justify-center relative">
+              {/* Subtle glow behind logo */}
+              <div className="absolute inset-0 rounded-full blur-xl opacity-50" style={{ background: 'var(--accent)' }}></div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg)' }} alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-[120%] h-[120%] object-contain relative z-10" style={{ filter: 'hue-rotate(-140deg) brightness(1.5)', mixBlendMode: 'screen' }} alt="TrueForm Logo" />
             </div>
 
             {/* Badge — static, no pulse */}
