@@ -18,11 +18,11 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 export const metadata: Metadata = {
   title: "TrueForm — Биомеханический анализ осанки и физического состояния",
   description: "Пройдите профессиональный экспресс-анализ вашей осанки, тонуса мышц и получите рекомендации кинезиолога по одной фотографии за 1 минуту.",
-  metadataBase: new URL("https://trueform.ru"),
+  metadataBase: new URL("https://trueformai.ru"),
   openGraph: {
     title: "TrueForm — Биомеханический анализ осанки и тела",
     description: "Узнайте состояние вашей осанки, симметрию плеч и тонус мышц по одному фото с помощью искусственного интеллекта.",
-    url: "https://trueform.ru",
+    url: "https://trueformai.ru",
     siteName: "TrueForm",
     locale: "ru_RU",
     type: "website",

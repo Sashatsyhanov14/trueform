@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     const idempotenceKey = crypto.randomUUID();
-    const origin = request.headers.get("origin") || "https://trueform.ru";
+    const origin = request.headers.get("origin") || "https://trueformai.ru";
 
     // Call real Yookassa API
     const response = await fetch("https://api.yookassa.ru/v3/payments", {

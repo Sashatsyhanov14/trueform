@@ -562,7 +562,7 @@ export default function Home() {
     analytics.trackShareLink();
     const shareUrl = scanId && typeof window !== "undefined"
       ? `${window.location.origin}?ref=${scanId}` 
-      : "https://trueform.ru";
+      : "https://trueformai.ru";
 
     const shareData = {
       title: "TrueForm AI",
@@ -1668,7 +1668,7 @@ export default function Home() {
                   const shareData = {
                     title: "TrueForm AI",
                     text: `📊 Мой ИИ-рейтинг тела в TrueForm составил ${result.score}/100! Посмотри свою осанку и форму бесплатно:`,
-                    url: "https://trueform.ru",
+                    url: "https://trueformai.ru",
                   };
                   
                   let shared = false;
