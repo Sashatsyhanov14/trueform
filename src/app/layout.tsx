@@ -18,8 +18,20 @@ const ibmPlexSans = IBM_Plex_Sans({
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-RSVBF0RZVN";
 
 export const metadata: Metadata = {
-  title: "TrueForm — Биомеханический анализ осанки и физического состояния",
-  description: "Пройдите профессиональный экспресс-анализ вашей осанки, тонуса мышц и получите рекомендации кинезиолога по одной фотографии за 1 минуту.",
+  title: "TrueForm — ИИ-анализ осанки и состояния тела онлайн",
+  description: "Бесплатный биомеханический экспресс-анализ осанки, мышечного тонуса и симметрии тела по одной фотографии за 1 минуту с помощью искусственного интеллекта.",
+  keywords: ["анализ осанки", "проверка осанки онлайн", "нейросеть для осанки", "биомеханика тела", "тест на сколиоз онлайн", "оценка тонуса мышц", "TrueForm AI"],
+  authors: [{ name: "TrueForm AI" }],
+  creator: "TrueForm AI",
+  publisher: "TrueForm AI",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  alternates: {
+    canonical: "https://trueformai.ru",
+  },
   metadataBase: new URL("https://trueformai.ru"),
   openGraph: {
     title: "TrueForm — Биомеханический анализ осанки и тела",
@@ -33,6 +45,32 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "TrueForm — Биомеханический анализ осанки",
     description: "Узнайте состояние вашей осанки и тонус мышц по одному фото.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "TrueForm AI",
+  "url": "https://trueformai.ru",
+  "description": "ИИ-платформа для биомеханического анализа осанки и физического состояния тела по фотографии.",
+  "applicationCategory": "HealthAndFitnessApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "RUB"
   }
 };
 
@@ -66,6 +104,10 @@ export default function RootLayout({
             </Script>
           </>
         )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
