@@ -1,26 +1,157 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #030303;
+    --foreground: #f8fafc;
+    --card: #09090b;
+    --card-foreground: #f8fafc;
+    --popover: #09090b;
+    --popover-foreground: #f8fafc;
+    --primary: #10b981; /* Neon Emerald */
+    --primary-foreground: #022c22;
+    --secondary: #8b5cf6; /* Cyber Purple */
+    --secondary-foreground: #ffffff;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    --accent: #27272a;
+    --accent-foreground: #f8fafc;
+    --destructive: #ef4444;
+    --destructive-foreground: #f8fafc;
+    --border: #1e1e24;
+    --input: #18181b;
+    --ring: #10b981;
+    --radius: 0.75rem;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Reliable mobile tapping — prevent double-tap-zoom from stealing clicks */
+button, a, label, [role="button"], input[type="file"] {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+/* Custom premium glow effects */
+.glow-primary {
+  box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.2);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.2);
+}
+
+.glow-card {
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Custom animations */
+@keyframes scanline {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+@keyframes grid-glow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Custom utility classes */
+.animate-scanline {
+  animation: scanline 4s linear infinite;
+}
+
+.animate-grid-glow {
+  animation: grid-glow 8s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s infinite ease-in-out;
+}
+
+.bg-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 15, 26, 0) 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(15, 15, 26, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Custom cyber grid background */
+.bg-grid-cyber {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+}
+
+.radial-fade {
+  background: radial-gradient(circle at 50% 50%, transparent 20%, #030303 80%);
+}
+
+/* Hide scrollbars for TWAs */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }
