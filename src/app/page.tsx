@@ -656,7 +656,10 @@ export default function Home() {
       <header className="sticky top-0 z-40 backdrop-blur-xl px-4 py-3 sm:px-6" style={{ background: 'oklch(0.10 0.005 260 / 0.85)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={resetAll}>
-            <Activity className="w-6 h-6" style={{ color: 'var(--accent)' }} />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" className="w-full h-full object-cover" alt="TrueForm Logo" />
+            </div>
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
               True<span style={{ color: 'var(--accent)' }}>Form</span>
             </span>
@@ -684,8 +687,9 @@ export default function Home() {
         {appState === "landing" && (
           <div className="w-full flex flex-col items-center text-center py-8 animate-fade-in">
             {/* Icon mark */}
-            <div className="mb-8 p-4 rounded-2xl" style={{ background: 'var(--accent-muted)', border: '1px solid oklch(0.72 0.14 175 / 0.2)' }}>
-              <Activity className="w-10 h-10" style={{ color: 'var(--accent)' }} strokeWidth={1.5} />
+            <div className="mb-8 w-16 h-16 rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(45,212,191,0.15)] shrink-0 mx-auto" style={{ border: '1px solid oklch(0.72 0.14 175 / 0.2)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" className="w-full h-full object-cover" alt="TrueForm Logo" />
             </div>
 
             {/* Badge — static, no pulse */}
