@@ -658,7 +658,7 @@ export default function Home() {
           <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={resetAll}>
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-cover" alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg)' }} alt="TrueForm Logo" />
             </div>
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
               True<span style={{ color: 'var(--accent)' }}>Form</span>
@@ -689,7 +689,7 @@ export default function Home() {
             {/* Icon mark */}
             <div className="mb-8 w-16 h-16 rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(45,212,191,0.15)] shrink-0 mx-auto" style={{ border: '1px solid oklch(0.72 0.14 175 / 0.2)' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" className="w-full h-full object-cover" alt="TrueForm Logo" />
+              <img src="/logo.png" className="w-full h-full object-cover" style={{ filter: 'hue-rotate(-140deg)' }} alt="TrueForm Logo" />
             </div>
 
             {/* Badge — static, no pulse */}
