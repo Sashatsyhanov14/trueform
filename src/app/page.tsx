@@ -215,6 +215,50 @@ export default function Home() {
         window.location.hostname === "localhost" ||
         window.location.hostname === "127.0.0.1"
       );
+
+      // Check for Supabase session and recover state from OAuth
+      const checkSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setIsRegistered(true);
+          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || "Пользователь";
+          const email = session.user.email || "";
+          setRegName(name);
+          setRegEmail(email);
+          localStorage.setItem("trueform_user_registered", "true");
+          localStorage.setItem("trueform_user_name", name);
+          localStorage.setItem("trueform_user_email", email);
+          
+          // Recover pending scan if exists
+          const pendingScan = localStorage.getItem("trueform_pending_scan_id");
+          if (pendingScan) {
+            // Need to reload page with scan if possible, or just set scanId
+            // If they just logged in, they should go to paywall or results.
+            // Since we don't fetch the result here, we just set the flags.
+            // A more robust implementation would fetch the scan from the DB.
+            const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+            if (freeScanUsed === "true") {
+              setAppState("paywall");
+            } else {
+              setAppState("results");
+              setIsFreePreview(true);
+              localStorage.setItem("trueform_free_scan_used", "true");
+            }
+            localStorage.removeItem("trueform_pending_scan_id");
+          }
+        }
+      };
+      
+      checkSession();
+      
+      // Listen for auth state changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          setIsRegistered(true);
+          localStorage.setItem("trueform_user_registered", "true");
+        }
+      });
+      return () => subscription.unsubscribe();
     }
   }, []);
 
@@ -438,56 +482,29 @@ export default function Home() {
     }
   };
 
-  const handleSocialRegister = async (provider: string, defaultName: string, defaultTg: string, defaultEmail: string) => {
+  const handleSocialRegister = async (provider: "google" | "vk") => {
     analytics.trackSocialLogin(provider);
-    triggerToast(`Вход через ${provider} успешен!`);
-    setRegName(defaultName);
-    setRegTelegram(defaultTg);
-    setRegEmail(defaultEmail);
+    triggerToast(`Перенаправление на ${provider}...`);
     
-    // Auto-save registration details
-    localStorage.setItem("trueform_user_registered", "true");
-    localStorage.setItem("trueform_user_name", defaultName);
-    localStorage.setItem("trueform_user_tg", defaultTg);
-    localStorage.setItem("trueform_user_email", defaultEmail);
-    setIsRegistered(true);
-
-    if (scanId && result) {
-      try {
-        await supabase
-          .from("scans")
-          .update({
-            user_name: defaultName,
-            user_telegram: defaultTg,
-            user_email: defaultEmail,
-            result: {
-              ...result,
-              user_details: {
-                name: defaultName,
-                telegram: defaultTg,
-                email: defaultEmail,
-                auth_provider: provider
-              }
-            }
-          })
-          .eq("id", scanId);
-      } catch (dbErr) {
-        console.error("Failed to update user details in supabase scan:", dbErr);
-      }
+    // Save pending scan if exists
+    if (scanId) {
+      localStorage.setItem("trueform_pending_scan_id", scanId);
     }
 
-    setTimeout(() => {
-      const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-      if (freeScanUsed === "true") {
-        setIsFreePreview(false);
-        setAppState("paywall");
-      } else {
-        setIsFreePreview(true);
-        localStorage.setItem("trueform_free_scan_used", "true");
-        setAppState("results");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: provider as any, // "google" | "vk"
+      options: {
+        redirectTo: `${window.location.origin}`
       }
-    }, 800);
+    });
+
+    if (error) {
+      console.error(error);
+      triggerToast(`Ошибка входа: ${error.message}`);
+    }
   };
+
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -959,15 +976,15 @@ export default function Home() {
             </div>
 
             {/* Quick social registration buttons */}
-            <div className="bg-[#09090b]/80 border border-white/5 p-4 rounded-2xl mb-3 space-y-2.5 glow-card">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Быстрая авторизация</div>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="bg-[#09090b]/80 border border-white/5 p-5 rounded-3xl space-y-4 glow-card mt-4">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center mb-2">Авторизация</div>
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => handleSocialRegister("Google", "Иван Иванов", "@ivan_tg", "ivan@gmail.com")}
-                  className="bg-white hover:bg-slate-100 text-black py-2 rounded-xl text-[10px] font-extrabold transition flex items-center justify-center gap-1 cursor-pointer shadow-[0_2px_8px_rgba(255,255,255,0.05)]"
+                  onClick={() => handleSocialRegister("google")}
+                  className="bg-white hover:bg-slate-100 text-black py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_8px_rgba(255,255,255,0.05)]"
                 >
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
@@ -978,73 +995,19 @@ export default function Home() {
                 
                 <button
                   type="button"
-                  onClick={() => handleSocialRegister("VK ID", "Дмитрий Смирнов", "@dmitry_tg", "dmitry@vk.com")}
-                  className="bg-[#0077FF] hover:bg-[#0066DD] text-white py-2 rounded-xl text-[10px] font-extrabold transition flex items-center justify-center gap-1 cursor-pointer"
+                  onClick={() => handleSocialRegister("vk")}
+                  className="bg-[#0077FF] hover:bg-[#0066DD] text-white py-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_8px_rgba(0,119,255,0.2)]"
                 >
-                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M15.08 3h-6.16C4.4 3 3 4.4 3 8.92v6.16C3 19.6 4.4 21 8.92 21h6.16c4.52 0 5.92-1.4 5.92-5.92v-6.16C21 4.4 19.6 3 15.08 3zm2.84 12.16c0 .32-.2.64-.64.64h-1.64c-.48 0-.92-.28-1.32-.68-.8-.8-1.48-1.44-2.08-1.44-.24 0-.44.08-.6.28-.24.28-.32.68-.32 1.16v.48c0 .24-.12.56-.56.56h-1.28c-2.04 0-4.04-1.24-5.32-3.8-.48-.96-.84-2.2-.84-3.24 0-.32.16-.56.56-.56h1.68c.36 0 .56.16.64.48.44 1.16 1.04 2.16 1.56 2.16.16 0 .28-.08.36-.28.16-.6.16-1.52-.36-1.92-.36-.28-.52-.36-.52-.56 0-.16.24-.32.64-.32h2.64c.36 0 .48.16.48.52v2.24c0 .28.08.4.2.4.16 0 .28-.08.44-.28.72-.96 1.16-2.08 1.4-2.48.08-.16.24-.28.52-.28h1.72c.48 0 .6.16.48.52-.28.72-.96 1.96-1.84 2.88-.28.28-.36.44-.08.76.28.32 1.16 1.32 1.76 2.04.44.52.88.92.88 1.28z"/>
                   </svg>
                   VK ID
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSocialRegister("Яндекс ID", "Анна Кузнецова", "@anna_tg", "anna@yandex.ru")}
-                  className="bg-[#FC3F35] hover:bg-[#E3352C] text-white py-2 rounded-xl text-[10px] font-extrabold transition flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <span className="font-extrabold text-[10px] bg-white text-[#FC3F35] px-1 rounded">Я</span>
-                  Яндекс
-                </button>
+              </div>
+              <div className="text-center text-[10px] text-slate-500 mt-4 leading-tight">
+                Авторизуясь, вы соглашаетесь с Политикой конфиденциальности и Пользовательским соглашением
               </div>
             </div>
-
-            {/* Registration Form */}
-            <form onSubmit={handleRegisterSubmit} className="bg-[#09090b]/80 border border-white/5 p-5 rounded-3xl space-y-4 glow-card">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Или введите вручную</div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ваше имя</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Иван"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Telegram (для связи)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="@username"
-                  value={regTelegram}
-                  onChange={(e) => setRegTelegram(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email / Телефон</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="name@example.com"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-colors"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer mt-2"
-              >
-                Посмотреть результаты
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
 
             <button
               onClick={resetAll}
