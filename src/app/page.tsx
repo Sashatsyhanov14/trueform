@@ -648,32 +648,26 @@ export default function Home() {
   };
 
   return (
-    <div className="relative flex flex-col min-h-screen bg-[#030303] text-slate-100 font-sans bg-grid-cyber antialiased overflow-x-hidden">
-      {/* Background radial glows */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none animate-grid-glow -z-10"></div>
-      <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-pink-500/10 rounded-full blur-[140px] pointer-events-none animate-grid-glow -z-10" style={{ animationDelay: "-4s" }}></div>
+    <div className="relative flex flex-col min-h-screen text-[var(--text-primary)] antialiased overflow-x-hidden" style={{ background: 'var(--bg)' }}>
+      {/* Subtle ambient glow — single, restrained */}
+      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full blur-[160px] pointer-events-none -z-10 animate-pulse-subtle" style={{ background: 'oklch(0.72 0.08 175 / 0.06)' }}></div>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-md border-b border-white/5 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-40 backdrop-blur-xl px-4 py-3 sm:px-6" style={{ background: 'oklch(0.10 0.005 260 / 0.85)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={resetAll}>
-            <div className="w-8 h-8 rounded-lg overflow-hidden border border-pink-500/30 shadow-[0_0_10px_rgba(244,63,94,0.2)] bg-black flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/emblem.png" className="w-7 h-7 object-contain" alt="TrueForm Logo" />
-            </div>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              True<span className="text-pink-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]">Form</span>
+            <Activity className="w-6 h-6" style={{ color: 'var(--accent)' }} />
+            <span className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
+              True<span style={{ color: 'var(--accent)' }}>Form</span>
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-block text-xs text-slate-500 border border-white/10 px-2 py-1 rounded-full bg-white/5">
-              Мобильная версия (РФ)
-            </span>
             {appState !== "landing" && (
               <button 
                 onClick={resetAll}
-                className="text-xs text-slate-400 hover:text-white flex items-center gap-1 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full transition"
+                className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-full transition cursor-pointer"
+                style={{ color: 'var(--text-secondary)', background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Сбросить
@@ -688,63 +682,75 @@ export default function Home() {
         
         {/* LANDING STATE */}
         {appState === "landing" && (
-          <div className="w-full flex flex-col items-center text-center py-6 animate-fade-in">
-            {/* Neon Pink Emblem Branding */}
-            <div className="relative mb-6 animate-float flex items-center justify-center">
-              <div className="absolute inset-0 bg-pink-500/25 rounded-full blur-2xl w-24 h-24"></div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/emblem.png" 
-                className="w-24 h-24 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(244,63,94,0.7)]" 
-                alt="TrueForm Emblem" 
-              />
+          <div className="w-full flex flex-col items-center text-center py-8 animate-fade-in">
+            {/* Icon mark */}
+            <div className="mb-8 p-4 rounded-2xl" style={{ background: 'var(--accent-muted)', border: '1px solid oklch(0.72 0.14 175 / 0.2)' }}>
+              <Activity className="w-10 h-10" style={{ color: 'var(--accent)' }} strokeWidth={1.5} />
             </div>
 
-            <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full text-emerald-400 text-xs font-semibold mb-6 animate-pulse-ring">
-              <Zap className="w-3.5 h-3.5 fill-emerald-400" />
-              ИИ-сканирование осанки и тела
+            {/* Badge — static, no pulse */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-6" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid oklch(0.72 0.14 175 / 0.15)' }}>
+              <Zap className="w-3 h-3" />
+              Анализ осанки и тела по фото
             </div>
 
-            <h1 className="text-4xl font-extrabold tracking-tight text-white mb-4 sm:text-5xl leading-none">
-              Твоя осанка и тело под <span className="text-transparent bg-gradient-to-r from-emerald-400 to-pink-500 bg-clip-text">анализом ИИ</span>
+            {/* Heading — solid color, no gradient text */}
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-tight mb-4" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif', color: 'var(--text-primary)' }}>
+              Узнай состояние{'\u00A0'}своего тела
+              <br />
+              <span style={{ color: 'var(--accent)' }}>за 60 секунд</span>
             </h1>
 
-            <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 max-w-sm">
-              Загрузи 1 фото в полный рост или по пояс и узнай свой рейтинг осанки и пропорций тела. Полностью анонимно.
+            <p className="text-sm sm:text-base leading-relaxed mb-10 max-w-sm" style={{ color: 'var(--text-secondary)' }}>
+              Загрузи одно фото, и ИИ оценит осанку, тонус мышц и пропорции. Анонимно и бесплатно.
             </p>
 
-            {/* Feature Bento Card */}
-            <div className="grid grid-cols-2 gap-3 w-full mb-8">
-              <div className="bg-[#09090b]/80 border border-white/5 p-3 rounded-2xl text-left glow-card">
-                <span className="text-xs text-slate-500 block mb-1">Осанка</span>
-                <span className="text-sm font-semibold text-emerald-400">Наклоны и дисбаланс</span>
-              </div>
-              <div className="bg-[#09090b]/80 border border-white/5 p-3 rounded-2xl text-left glow-card">
-                <span className="text-xs text-slate-500 block mb-1">Тело</span>
-                <span className="text-sm font-semibold text-pink-400">Тонус и пропорции</span>
-              </div>
-              <div className="bg-[#09090b]/80 border border-white/5 p-3 rounded-2xl text-left glow-card col-span-2 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-500 block mb-0.5">Конфиденциальность</span>
-                  <span className="text-sm font-semibold text-white">Удаление фото после теста</span>
+            {/* Features — inline list, not cards */}
+            <div className="w-full space-y-3 mb-10 text-left max-w-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <TrendingUp className="w-4 h-4" style={{ color: 'var(--accent)' }} />
                 </div>
-                <ShieldCheck className="w-8 h-8 text-emerald-500/80 stroke-1" />
+                <div>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Осанка и баланс</span>
+                  <span className="text-xs block" style={{ color: 'var(--text-tertiary)' }}>Наклоны, перекосы, сутулость</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <User className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Тонус и пропорции</span>
+                  <span className="text-xs block" style={{ color: 'var(--text-tertiary)' }}>Мышечный баланс, симметрия</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <ShieldCheck className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Полная конфиденциальность</span>
+                  <span className="text-xs block" style={{ color: 'var(--text-tertiary)' }}>Фото удаляется сразу после анализа</span>
+                </div>
               </div>
             </div>
 
+            {/* CTA — solid accent, no gradient, no glow */}
             <button
               onClick={() => setAppState("upload")}
-              className="relative z-20 w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-bold py-4 px-6 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] transition transform active:scale-95 flex items-center justify-center gap-2 text-base cursor-pointer"
-              style={{ touchAction: 'manipulation' }}
+              className="relative z-20 w-full max-w-sm font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer active:scale-[0.98]"
+              style={{ background: 'var(--accent)', color: 'var(--accent-text)', touchAction: 'manipulation' }}
             >
-              Начать сканирование
-              <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+              Начать анализ
+              <ArrowRight className="w-5 h-5" strokeWidth={2} />
             </button>
 
-            <div className="mt-6 flex items-center gap-4 text-xs text-slate-500">
+            {/* Social proof — minimal */}
+            <div className="mt-6 flex items-center gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                Бесплатно 3/3 тестов
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
+                Бесплатно
               </span>
               <span>•</span>
               <span>10,482 анализа сегодня</span>
@@ -2178,15 +2184,15 @@ export default function Home() {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#09090b]/90 border border-emerald-500/30 text-emerald-400 text-xs font-medium px-4 py-3 rounded-2xl shadow-[0_4px_20px_rgba(16,185,129,0.2)] backdrop-blur-md flex items-center gap-2 animate-fade-in">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 text-xs font-medium px-4 py-3 rounded-xl backdrop-blur-md flex items-center gap-2 animate-fade-in" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--accent)' }}>
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Footer */}
-      <footer className="py-6 border-t border-white/5 px-4 mt-auto">
-        <div className="max-w-md mx-auto text-center space-y-2 text-[10px] text-slate-600">
+      <footer className="py-6 px-4 mt-auto" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="max-w-md mx-auto text-center space-y-2 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
           <p>© 2026 TrueForm AI. Все права защищены. Сделано в РФ.</p>
           <p className="px-6 leading-relaxed">
             Пользуясь сервисом, вы соглашаетесь с условиями оферты. Все фотографии зашифрованы и автоматически удаляются в течение 10 минут после окончания анализа.
