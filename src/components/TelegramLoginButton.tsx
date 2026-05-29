@@ -27,6 +27,7 @@ export function TelegramLoginButton({ botUsername, onAuth }: TelegramLoginButton
 
     // Define global callback function
     (window as any).onTelegramAuth = (user: any) => {
+      console.log("TelegramLoginButton widget callback triggered. User:", user);
       onAuth(user);
     };
     script.setAttribute("data-onauth", "onTelegramAuth(user)");

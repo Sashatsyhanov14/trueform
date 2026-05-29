@@ -524,6 +524,7 @@ export default function Home() {
   };
 
   const handleTelegramAuth = async (user: any) => {
+    console.log("handleTelegramAuth triggered. Received user data:", user);
     analytics.trackSocialLogin("telegram");
     triggerToast("Авторизация через Telegram...");
 
@@ -533,26 +534,35 @@ export default function Home() {
     }
 
     try {
+      console.log("Sending POST /api/auth/telegram/verify...");
       const res = await fetch("/api/auth/telegram/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ authData: user }),
       });
 
+      console.log("Verification API response status:", res.status);
       const data = await res.json();
+      console.log("Verification API response body:", data);
+
       if (data.error) {
+        console.error("Verification failed:", data.error);
         triggerToast(`Ошибка Telegram: ${data.error}`);
         return;
       }
 
       const { email, password, name } = data;
+      console.log("Verified user email:", email, "name:", name);
 
       // 1. Try to sign in
+      console.log("Attempting signInWithPassword...");
       const signInRes = await supabase.auth.signInWithPassword({ email, password });
       let authError = signInRes.error;
+      console.log("signInWithPassword response:", signInRes);
 
       // 2. If user doesn't exist, sign up
       if (authError) {
+        console.log("User may not exist. Attempting signUp...");
         const signUpRes = await supabase.auth.signUp({
           email,
           password,
@@ -564,11 +574,14 @@ export default function Home() {
           },
         });
         authError = signUpRes.error;
+        console.log("signUp response:", signUpRes);
       }
 
       if (authError) {
+        console.error("Authentication failed:", authError);
         triggerToast(`Ошибка входа: ${authError.message}`);
       } else {
+        console.log("Authentication successful!");
         triggerToast("Успешный вход через Telegram!");
         setIsRegistered(true);
         setRegName(name);
