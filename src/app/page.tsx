@@ -232,18 +232,36 @@ export default function Home() {
           // Recover pending scan if exists
           const pendingScan = localStorage.getItem("trueform_pending_scan_id");
           if (pendingScan) {
-            // Need to reload page with scan if possible, or just set scanId
-            // If they just logged in, they should go to paywall or results.
-            // Since we don't fetch the result here, we just set the flags.
-            // A more robust implementation would fetch the scan from the DB.
-            const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-            if (freeScanUsed === "true") {
-              setAppState("paywall");
-            } else {
-              setAppState("results");
-              setIsFreePreview(true);
-              localStorage.setItem("trueform_free_scan_used", "true");
+            setScanId(pendingScan);
+            
+            // Fetch scan result from DB
+            try {
+              const { data: scanData } = await supabase
+                .from("scans")
+                .select("*")
+                .eq("id", pendingScan)
+                .single();
+              
+              if (scanData?.result) {
+                setResult(scanData.result);
+                if (scanData.image_url) {
+                  setImage(scanData.image_url);
+                }
+                
+                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+                if (freeScanUsed === "true") {
+                  setIsFreePreview(false);
+                  setAppState("paywall");
+                } else {
+                  setIsFreePreview(true);
+                  localStorage.setItem("trueform_free_scan_used", "true");
+                  setAppState("results");
+                }
+              }
+            } catch (fetchErr) {
+              console.error("Failed to recover scan after OAuth:", fetchErr);
             }
+            
             localStorage.removeItem("trueform_pending_scan_id");
           }
         }
