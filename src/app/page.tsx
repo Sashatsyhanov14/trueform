@@ -503,7 +503,21 @@ export default function Home() {
       triggerToast(`Ошибка входа: ${error.message}`);
     }
   };
-
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      triggerToast(`Ошибка выхода: ${error.message}`);
+    } else {
+      setIsRegistered(false);
+      setRegName("");
+      setRegEmail("");
+      localStorage.removeItem("trueform_user_registered");
+      localStorage.removeItem("trueform_user_name");
+      localStorage.removeItem("trueform_user_email");
+      triggerToast("Вы вышли из аккаунта");
+      setAppState("landing");
+    }
+  };
 
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -683,6 +697,28 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            {appState === "landing" && (
+              isRegistered ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--text-secondary)] font-semibold max-w-[100px] truncate">{regName}</span>
+                  <button 
+                    onClick={handleLogout}
+                    className="text-[10px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-full transition cursor-pointer border hover:bg-red-500/10"
+                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}
+                  >
+                    Выйти
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setAppState("register")}
+                  className="text-xs font-extrabold flex items-center gap-1 px-4 py-1.5 rounded-full transition cursor-pointer"
+                  style={{ color: '#000000', background: '#ffffff' }}
+                >
+                  Войти
+                </button>
+              )
+            )}
             {appState !== "landing" && (
               <button 
                 onClick={resetAll}
@@ -966,13 +1002,27 @@ export default function Home() {
           <div className="w-full flex flex-col py-2 animate-fade-in max-w-sm mx-auto">
             {/* Header info */}
             <div className="text-center mb-5">
-              <span className="inline-flex bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-emerald-400 text-xs font-bold mb-3">
-                🎉 Анализ завершен на 100%
-              </span>
-              <h2 className="text-2xl font-extrabold text-white">Результат готов!</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Создайте бесплатный аккаунт, чтобы сохранить снимок и получить доступ к вашей оценке тела.
-              </p>
+              {scanId ? (
+                <>
+                  <span className="inline-flex bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-emerald-400 text-xs font-bold mb-3">
+                    🎉 Анализ завершен на 100%
+                  </span>
+                  <h2 className="text-2xl font-extrabold text-white">Результат готов!</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Создайте бесплатный аккаунт, чтобы сохранить снимок и получить доступ к вашей оценке тела.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full text-purple-400 text-xs font-bold mb-3">
+                    🔐 Безопасная авторизация
+                  </span>
+                  <h2 className="text-2xl font-extrabold text-white">Вход в TrueForm</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Войдите, чтобы посмотреть историю ваших сканирований и динамику прогресса.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Quick social registration buttons */}
@@ -1989,6 +2039,15 @@ export default function Home() {
             {mainTab === "profile" && (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2"><User className="w-4 h-4 text-pink-400" /> Личный кабинет</h3>
+                
+                {isRegistered && (
+                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Вы вошли как</p>
+                    <p className="text-xs font-bold text-white">{regName || "Пользователь"}</p>
+                    {regEmail && <p className="text-[10px] text-slate-400">{regEmail}</p>}
+                  </div>
+                )}
+
                 <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
                   <div><p className="text-[11px] font-bold text-white">Подписка</p><p className={`text-[10px] font-semibold ${isFreePreview ? "text-amber-400" : "text-emerald-400"}`}>{isFreePreview ? "Бесплатный просмотр" : "✓ Активна"}</p></div>
                   {isFreePreview && <button onClick={() => setShowPaywallModal(true)} className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-emerald-500/20 transition">Активировать</button>}
@@ -2007,7 +2066,12 @@ export default function Home() {
 
                 <div className="space-y-2">
                   <button onClick={resetAll} className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /> Новый скан</button>
-                  <button onClick={() => { localStorage.clear(); resetAll(); triggerToast("Данные сброшены"); }} className="w-full text-slate-600 hover:text-red-400 text-[10px] font-semibold py-2 transition cursor-pointer">Сбросить все данные</button>
+                  {isRegistered ? (
+                    <button onClick={handleLogout} className="w-full bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/30 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer">Выйти из аккаунта</button>
+                  ) : (
+                    <button onClick={() => setAppState("register")} className="w-full bg-white hover:bg-slate-100 text-black font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer">Войти / Зарегистрироваться</button>
+                  )}
+                  <button onClick={() => { localStorage.clear(); resetAll(); triggerToast("Данные сброшены"); }} className="w-full text-slate-600 hover:text-red-400 text-[10px] font-semibold py-2 transition cursor-pointer">Сбросить локальные данные</button>
                 </div>
               </div>
             )}
