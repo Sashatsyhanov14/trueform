@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     // Generate secure deterministic email and password for Supabase client sign-in
-    const email = `tg_${authData.id}@trueformai.ru`;
+    const email = `trueform.tg.${authData.id}@gmail.com`;
     
     // We sign the Telegram user ID using the Bot Token to generate a strong password
     const password = crypto
