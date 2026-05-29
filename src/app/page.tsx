@@ -589,22 +589,27 @@ export default function Home() {
     analytics.trackPaymentInit();
     setIsProcessing(true);
 
-    // TEMPORARY BYPASS: Instant unlock for testing/preview
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowPaymentSuccess(true);
-      
-      if (scanId) {
-        supabase.from("scans").update({ payment_status: "paid" }).eq("id", scanId).then();
-      }
+    try {
+      const res = await fetch("/api/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scanId }),
+      });
 
-      setTimeout(() => {
-        setShowPaymentSuccess(false);
-        setIsFreePreview(false); // Unlock content!
-        setShowPaywallModal(false); // Close checkout modal if open
-        setAppState("results");
-      }, 1000);
-    }, 800);
+      const data = await res.json();
+
+      if (data.payment_url) {
+        // Redirect user to YooKassa checkout page
+        window.location.href = data.payment_url;
+      } else {
+        triggerToast(data.error || "Ошибка при создании платежа");
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      console.error("Payment request failed:", err);
+      triggerToast("Не удалось подключиться к платёжной системе. Попробуйте позже.");
+      setIsProcessing(false);
+    }
   };
 
   const handleShare = async () => {
