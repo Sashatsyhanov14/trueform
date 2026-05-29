@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import * as analytics from "@/lib/analytics";
 import { 
   Camera, 
@@ -519,6 +520,99 @@ export default function Home() {
     if (error) {
       console.error(error);
       triggerToast(`Ошибка входа: ${error.message}`);
+    }
+  };
+
+  const handleTelegramAuth = async (user: any) => {
+    analytics.trackSocialLogin("telegram");
+    triggerToast("Авторизация через Telegram...");
+
+    // Save pending scan if exists
+    if (scanId) {
+      localStorage.setItem("trueform_pending_scan_id", scanId);
+    }
+
+    try {
+      const res = await fetch("/api/auth/telegram/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authData: user }),
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        triggerToast(`Ошибка Telegram: ${data.error}`);
+        return;
+      }
+
+      const { email, password, name } = data;
+
+      // 1. Try to sign in
+      const signInRes = await supabase.auth.signInWithPassword({ email, password });
+      let authError = signInRes.error;
+
+      // 2. If user doesn't exist, sign up
+      if (authError) {
+        const signUpRes = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              name: name,
+            },
+          },
+        });
+        authError = signUpRes.error;
+      }
+
+      if (authError) {
+        triggerToast(`Ошибка входа: ${authError.message}`);
+      } else {
+        triggerToast("Успешный вход через Telegram!");
+        setIsRegistered(true);
+        setRegName(name);
+        setRegEmail(email);
+        localStorage.setItem("trueform_user_registered", "true");
+        localStorage.setItem("trueform_user_name", name);
+        localStorage.setItem("trueform_user_email", email);
+
+        // Fetch scan result from DB if scanId exists
+        const pendingScan = localStorage.getItem("trueform_pending_scan_id") || scanId;
+        if (pendingScan) {
+          setScanId(pendingScan);
+          try {
+            const { data: scanData } = await supabase
+              .from("scans")
+              .select("*")
+              .eq("id", pendingScan)
+              .single();
+            
+            if (scanData?.result) {
+              setResult(scanData.result);
+              if (scanData.image_url) {
+                setImage(scanData.image_url);
+              }
+              
+              const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+              if (freeScanUsed === "true") {
+                setIsFreePreview(false);
+                setAppState("paywall");
+              } else {
+                setIsFreePreview(true);
+                localStorage.setItem("trueform_free_scan_used", "true");
+                setAppState("results");
+              }
+            }
+          } catch (fetchErr) {
+            console.error("Failed to recover scan after Telegram auth:", fetchErr);
+          }
+          localStorage.removeItem("trueform_pending_scan_id");
+        }
+      }
+    } catch (err) {
+      console.error("Telegram auth failed:", err);
+      triggerToast("Не удалось войти через Telegram. Попробуйте еще раз.");
     }
   };
   const handleLogout = async () => {
@@ -1051,7 +1145,7 @@ export default function Home() {
             {/* Quick social registration buttons */}
             <div className="bg-[#09090b]/80 border border-white/5 p-5 rounded-3xl space-y-4 glow-card mt-4">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center mb-2">Авторизация</div>
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-3">
                 <button
                   type="button"
                   onClick={() => handleSocialRegister("google")}
@@ -1065,6 +1159,18 @@ export default function Home() {
                   </svg>
                   Войти через Google
                 </button>
+                
+                <div className="relative flex items-center justify-center py-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/5"></div>
+                  </div>
+                  <span className="relative px-3 text-[10px] text-slate-500 bg-[#0c0c0e] uppercase tracking-wider font-bold">или</span>
+                </div>
+
+                <TelegramLoginButton
+                  botUsername="trueformai_bot"
+                  onAuth={handleTelegramAuth}
+                />
               </div>
               <div className="text-center text-[10px] text-slate-500 mt-4 leading-tight">
                 Авторизуясь, вы соглашаетесь с Политикой конфиденциальности и Пользовательским соглашением
