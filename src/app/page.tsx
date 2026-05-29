@@ -616,11 +616,31 @@ export default function Home() {
                 localStorage.setItem("trueform_free_scan_used", "true");
                 setAppState("results");
               }
+            } else {
+              // Scan exists but no result yet — go to upload
+              console.log("No scan result found, redirecting to upload");
+              setAppState("upload");
             }
           } catch (fetchErr) {
             console.error("Failed to recover scan after Telegram auth:", fetchErr);
+            setAppState("upload");
           }
           localStorage.removeItem("trueform_pending_scan_id");
+        } else if (result) {
+          // No pending scan but we have current result in state
+          const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+          if (freeScanUsed === "true") {
+            setIsFreePreview(false);
+            setAppState("paywall");
+          } else {
+            setIsFreePreview(true);
+            localStorage.setItem("trueform_free_scan_used", "true");
+            setAppState("results");
+          }
+        } else {
+          // No scan at all — let user start fresh
+          console.log("No scan data, redirecting to upload");
+          setAppState("upload");
         }
       }
     } catch (err) {
