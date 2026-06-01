@@ -425,6 +425,16 @@ export default function Home() {
           fetchScanAfterPayment();
         }
       }
+
+      // Check if returning from VK authorization redirect
+      const vkCode = params.get("code");
+      const vkState = params.get("state");
+      if (vkCode && vkState === "vk") {
+        // Clear query params to make URL clean
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        handleVkAuthCallback(vkCode);
+      }
     }
   }, []);
 
@@ -503,15 +513,23 @@ export default function Home() {
 
   const handleSocialRegister = async (provider: "google" | "vk") => {
     analytics.trackSocialLogin(provider);
-    triggerToast(`Перенаправление на ${provider}...`);
     
     // Save pending scan if exists
     if (scanId) {
       localStorage.setItem("trueform_pending_scan_id", scanId);
     }
 
+    if (provider === "vk") {
+      triggerToast("Перенаправление в VK...");
+      const vkClientId = "54619340";
+      const redirectUri = window.location.origin + window.location.pathname;
+      window.location.href = `https://oauth.vk.com/authorize?client_id=${vkClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email&state=vk`;
+      return;
+    }
+
+    triggerToast(`Перенаправление на ${provider}...`);
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: (provider === "vk" ? "custom:vk" : provider) as any,
+      provider: provider as any,
       options: {
         redirectTo: `${window.location.origin}`
       }
@@ -520,6 +538,111 @@ export default function Home() {
     if (error) {
       console.error(error);
       triggerToast(`Ошибка входа: ${error.message}`);
+    }
+  };
+
+  const handleVkAuthCallback = async (code: string) => {
+    analytics.trackSocialLogin("vk");
+    triggerToast("Авторизация через VK...");
+
+    try {
+      const redirectUri = window.location.origin + window.location.pathname;
+      const res = await fetch("/api/auth/vk/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, redirectUri }),
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        triggerToast(`Ошибка VK: ${data.error}`);
+        return;
+      }
+
+      const { email, password, name } = data;
+
+      // 1. Try to sign in
+      const signInRes = await supabase.auth.signInWithPassword({ email, password });
+      let authError = signInRes.error;
+
+      // 2. If user doesn't exist, sign up
+      if (authError) {
+        const signUpRes = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              name: name,
+            },
+          },
+        });
+        authError = signUpRes.error;
+      }
+
+      if (authError) {
+        console.error("VK Authentication failed:", authError);
+        triggerToast(`Ошибка входа VK: ${authError.message}`);
+      } else {
+        triggerToast("Успешный вход через VK!");
+        setIsRegistered(true);
+        setRegName(name);
+        setRegEmail(email);
+        localStorage.setItem("trueform_user_registered", "true");
+        localStorage.setItem("trueform_user_name", name);
+        localStorage.setItem("trueform_user_email", email);
+
+        // Fetch scan result from DB if scanId exists
+        const pendingScan = localStorage.getItem("trueform_pending_scan_id") || scanId;
+        if (pendingScan) {
+          setScanId(pendingScan);
+          try {
+            const { data: scanData } = await supabase
+              .from("scans")
+              .select("*")
+              .eq("id", pendingScan)
+              .single();
+            
+            if (scanData?.result) {
+              setResult(scanData.result);
+              if (scanData.image_url) {
+                setImage(scanData.image_url);
+              }
+              
+              const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+              if (freeScanUsed === "true") {
+                setIsFreePreview(false);
+                setAppState("paywall");
+              } else {
+                setIsFreePreview(true);
+                localStorage.setItem("trueform_free_scan_used", "true");
+                setAppState("results");
+              }
+            } else {
+              setAppState("upload");
+            }
+          } catch (fetchErr) {
+            console.error("Failed to recover scan after VK auth:", fetchErr);
+            setAppState("upload");
+          }
+          localStorage.removeItem("trueform_pending_scan_id");
+        } else if (result) {
+          const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+          if (freeScanUsed === "true") {
+            setIsFreePreview(false);
+            setAppState("paywall");
+          } else {
+            setIsFreePreview(true);
+            localStorage.setItem("trueform_free_scan_used", "true");
+            setAppState("results");
+          }
+        } else {
+          setAppState("upload");
+        }
+      }
+    } catch (err) {
+      console.error("VK auth failed:", err);
+      triggerToast("Не удалось войти через VK. Попробуйте еще раз.");
     }
   };
 
