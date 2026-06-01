@@ -511,7 +511,7 @@ export default function Home() {
     }
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider as any, // "google" | "vk"
+      provider: (provider === "vk" ? "custom:vk" : provider) as any,
       options: {
         redirectTo: `${window.location.origin}`
       }
