@@ -249,14 +249,19 @@ export default function Home() {
                   setImage(scanData.image_url);
                 }
                 
-                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-                if (freeScanUsed === "true") {
+                if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
                   setIsFreePreview(false);
-                  setAppState("paywall");
-                } else {
-                  setIsFreePreview(true);
-                  localStorage.setItem("trueform_free_scan_used", "true");
                   setAppState("results");
+                } else {
+                  const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+                  if (freeScanUsed === "true") {
+                    setIsFreePreview(false);
+                    setAppState("paywall");
+                  } else {
+                    setIsFreePreview(true);
+                    localStorage.setItem("trueform_free_scan_used", "true");
+                    setAppState("results");
+                  }
                 }
               }
             } catch (fetchErr) {
@@ -609,14 +614,19 @@ export default function Home() {
                 setImage(scanData.image_url);
               }
               
-              const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-              if (freeScanUsed === "true") {
+              if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
                 setIsFreePreview(false);
-                setAppState("paywall");
-              } else {
-                setIsFreePreview(true);
-                localStorage.setItem("trueform_free_scan_used", "true");
                 setAppState("results");
+              } else {
+                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+                if (freeScanUsed === "true") {
+                  setIsFreePreview(false);
+                  setAppState("paywall");
+                } else {
+                  setIsFreePreview(true);
+                  localStorage.setItem("trueform_free_scan_used", "true");
+                  setAppState("results");
+                }
               }
             } else {
               setAppState("upload");
@@ -730,14 +740,19 @@ export default function Home() {
                 setImage(scanData.image_url);
               }
               
-              const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-              if (freeScanUsed === "true") {
+              if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
                 setIsFreePreview(false);
-                setAppState("paywall");
-              } else {
-                setIsFreePreview(true);
-                localStorage.setItem("trueform_free_scan_used", "true");
                 setAppState("results");
+              } else {
+                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+                if (freeScanUsed === "true") {
+                  setIsFreePreview(false);
+                  setAppState("paywall");
+                } else {
+                  setIsFreePreview(true);
+                  localStorage.setItem("trueform_free_scan_used", "true");
+                  setAppState("results");
+                }
               }
             } else {
               // Scan exists but no result yet — go to upload
@@ -772,19 +787,23 @@ export default function Home() {
     }
   };
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      triggerToast(`Ошибка выхода: ${error.message}`);
-    } else {
-      setIsRegistered(false);
-      setRegName("");
-      setRegEmail("");
-      localStorage.removeItem("trueform_user_registered");
-      localStorage.removeItem("trueform_user_name");
-      localStorage.removeItem("trueform_user_email");
-      triggerToast("Вы вышли из аккаунта");
-      setAppState("landing");
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Supabase signOut error:", e);
     }
+    
+    // Always clear local state
+    setIsRegistered(false);
+    setRegName("");
+    setRegEmail("");
+    setRegTelegram("");
+    localStorage.removeItem("trueform_user_registered");
+    localStorage.removeItem("trueform_user_name");
+    localStorage.removeItem("trueform_user_email");
+    localStorage.removeItem("trueform_user_tg");
+    triggerToast("Вы вышли из аккаунта");
+    setAppState("landing");
   };
 
 
