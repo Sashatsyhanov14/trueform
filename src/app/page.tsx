@@ -1179,6 +1179,7 @@ export default function Home() {
             <div className="bg-[#09090b]/80 border border-white/5 p-5 rounded-3xl space-y-4 glow-card mt-4">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center mb-2">Авторизация</div>
               <div className="flex flex-col gap-3">
+                {/* Google */}
                 <button
                   type="button"
                   onClick={() => handleSocialRegister("google")}
@@ -1192,7 +1193,20 @@ export default function Home() {
                   </svg>
                   Войти через Google
                 </button>
-                
+
+                {/* VK */}
+                <button
+                  type="button"
+                  onClick={() => handleSocialRegister("vk")}
+                  className="w-full bg-[#0077FF] hover:bg-[#0066DD] text-white py-3.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_8px_rgba(0,119,255,0.2)]"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M15.08 3h-6.16C4.4 3 3 4.4 3 8.92v6.16C3 19.6 4.4 21 8.92 21h6.16c4.52 0 5.92-1.4 5.92-5.92v-6.16C21 4.4 19.6 3 15.08 3zm2.84 12.16c0 .32-.2.64-.64.64h-1.64c-.48 0-.92-.28-1.32-.68-.8-.8-1.48-1.44-2.08-1.44-.24 0-.44.08-.6.28-.24.28-.32.68-.32 1.16v.48c0 .24-.12.56-.56.56h-1.28c-2.04 0-4.04-1.24-5.32-3.8-.48-.96-.84-2.2-.84-3.24 0-.32.16-.56.56-.56h1.68c.36 0 .56.16.64.48.44 1.16 1.04 2.16 1.56 2.16.16 0 .28-.08.36-.28.16-.6.16-1.52-.36-1.92-.36-.28-.52-.36-.52-.56 0-.16.24-.32.64-.32h2.64c.36 0 .48.16.48.52v2.24c0 .28.08.4.2.4.16 0 .28-.08.44-.28.72-.96 1.16-2.08 1.4-2.48.08-.16.24-.28.52-.28h1.72c.48 0 .6.16.48.52-.28.72-.96 1.96-1.84 2.88-.28.28-.36.44-.08.76.28.32 1.16 1.32 1.76 2.04.44.52.88.92.88 1.28z"/>
+                  </svg>
+                  Войти через VK
+                </button>
+
+                {/* Divider */}
                 <div className="relative flex items-center justify-center py-1">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-white/5"></div>
@@ -1200,6 +1214,7 @@ export default function Home() {
                   <span className="relative px-3 text-[10px] text-slate-500 bg-[#0c0c0e] uppercase tracking-wider font-bold">или</span>
                 </div>
 
+                {/* Telegram (official widget) */}
                 <TelegramLoginButton
                   botUsername="trueformai_bot"
                   onAuth={handleTelegramAuth}
