@@ -262,14 +262,15 @@ export default function Home() {
             setIsFreePreview(false);
             setAppState("results");
           } else {
-            const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-            if (freeScanUsed === "true") {
+            const lastScanTime = localStorage.getItem("trueform_free_scan_time");
+            const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+            if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
+              setIsFreePreview(true);
+              localStorage.setItem("trueform_free_scan_time", Date.now().toString());
+              setAppState("results");
+            } else {
               setIsFreePreview(false);
               setAppState("paywall");
-            } else {
-              setIsFreePreview(true);
-              localStorage.setItem("trueform_free_scan_used", "true");
-              setAppState("results");
             }
           }
         }
@@ -565,14 +566,18 @@ export default function Home() {
       if (!registered) {
         setAppState("register");
       } else {
-        const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-        if (freeScanUsed === "true") {
+        const lastScanTime = localStorage.getItem("trueform_free_scan_time");
+        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+        
+        // If they have never scanned, OR a week has passed, they get a free preview
+        if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
+          setIsFreePreview(true);
+          localStorage.setItem("trueform_free_scan_time", Date.now().toString());
+          setAppState("results");
+        } else {
+          // Used their weekly limit
           setIsFreePreview(false);
           setAppState("paywall");
-        } else {
-          setIsFreePreview(true);
-          localStorage.setItem("trueform_free_scan_used", "true");
-          setAppState("results");
         }
       }
     } catch (e) {
@@ -2638,6 +2643,7 @@ export default function Home() {
                     <button onClick={() => setAppState("register")} className="w-full bg-white hover:bg-slate-100 text-black font-semibold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer relative z-50">Войти / Зарегистрироваться</button>
                   )}
                   <button onClick={() => { localStorage.clear(); resetAll(); triggerToast("Данные сброшены"); }} className="w-full text-slate-600 hover:text-red-400 text-[10px] font-semibold py-2 transition cursor-pointer relative z-50">Сбросить локальные данные</button>
+                  <p className="text-center pt-2 text-[9px] text-slate-600">Поддержка: <a href="mailto:alexandertsyhanov@gmail.com" className="text-emerald-500 hover:underline relative z-50">alexandertsyhanov@gmail.com</a></p>
                 </div>
               </div>
             )}
