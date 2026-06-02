@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import * as analytics from "@/lib/analytics";
 import Script from "next/script";
 import { 
@@ -593,7 +592,6 @@ export default function Home() {
     setIsRegistered(reg);
     if (reg) {
       setRegName(localStorage.getItem("trueform_user_name") || "");
-      setRegTelegram(localStorage.getItem("trueform_user_tg") || "");
       setRegEmail(localStorage.getItem("trueform_user_email") || "");
     }
 
@@ -687,7 +685,6 @@ export default function Home() {
     analytics.trackRegistration("email_form");
     localStorage.setItem("trueform_user_registered", "true");
     localStorage.setItem("trueform_user_name", regName);
-    localStorage.setItem("trueform_user_tg", regTelegram);
     localStorage.setItem("trueform_user_email", regEmail);
     setIsRegistered(true);
 
@@ -697,13 +694,11 @@ export default function Home() {
           .from("scans")
           .update({
             user_name: regName,
-            user_telegram: regTelegram,
             user_email: regEmail,
             result: {
               ...result,
               user_details: {
                 name: regName,
-                telegram: regTelegram,
                 email: regEmail
               }
             }
@@ -714,14 +709,15 @@ export default function Home() {
       }
     }
 
-    const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-    if (freeScanUsed === "true") {
+    const lastScanTime = localStorage.getItem("trueform_free_scan_time");
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
+      setIsFreePreview(true);
+      localStorage.setItem("trueform_free_scan_time", Date.now().toString());
+      setAppState("results");
+    } else {
       setIsFreePreview(false);
       setAppState("paywall");
-    } else {
-      setIsFreePreview(true);
-      localStorage.setItem("trueform_free_scan_used", "true");
-      setAppState("results");
     }
   };
 
@@ -827,14 +823,15 @@ export default function Home() {
                 setIsFreePreview(false);
                 setAppState("results");
               } else {
-                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-                if (freeScanUsed === "true") {
+                const lastScanTime = localStorage.getItem("trueform_free_scan_time");
+                const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+                if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
+                  setIsFreePreview(true);
+                  localStorage.setItem("trueform_free_scan_time", Date.now().toString());
+                  setAppState("results");
+                } else {
                   setIsFreePreview(false);
                   setAppState("paywall");
-                } else {
-                  setIsFreePreview(true);
-                  localStorage.setItem("trueform_free_scan_used", "true");
-                  setAppState("results");
                 }
               }
             } else {
@@ -846,14 +843,15 @@ export default function Home() {
           }
           localStorage.removeItem("trueform_pending_scan_id");
         } else if (result) {
-          const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-          if (freeScanUsed === "true") {
+          const lastScanTime = localStorage.getItem("trueform_free_scan_time");
+          const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+          if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
+            setIsFreePreview(true);
+            localStorage.setItem("trueform_free_scan_time", Date.now().toString());
+            setAppState("results");
+          } else {
             setIsFreePreview(false);
             setAppState("paywall");
-          } else {
-            setIsFreePreview(true);
-            localStorage.setItem("trueform_free_scan_used", "true");
-            setAppState("results");
           }
         } else {
           setAppState("upload");
@@ -865,136 +863,7 @@ export default function Home() {
     }
   };
 
-  const handleTelegramAuth = async (user: any) => {
-    console.log("handleTelegramAuth triggered. Received user data:", user);
-    analytics.trackSocialLogin("telegram");
-    triggerToast("Авторизация через Telegram...");
 
-    // Save pending scan if exists
-    if (scanId) {
-      localStorage.setItem("trueform_pending_scan_id", scanId);
-    }
-
-    try {
-      console.log("Sending POST /api/auth/telegram/verify...");
-      const res = await fetch("/api/auth/telegram/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authData: user }),
-      });
-
-      console.log("Verification API response status:", res.status);
-      const data = await res.json();
-      console.log("Verification API response body:", data);
-
-      if (data.error) {
-        console.error("Verification failed:", data.error);
-        triggerToast(`Ошибка Telegram: ${data.error}`);
-        return;
-      }
-
-      const { email, password, name } = data;
-      console.log("Verified user email:", email, "name:", name);
-
-      // 1. Try to sign in
-      console.log("Attempting signInWithPassword...");
-      const signInRes = await supabase.auth.signInWithPassword({ email, password });
-      let authError = signInRes.error;
-      console.log("signInWithPassword response:", signInRes);
-
-      // 2. If user doesn't exist, sign up
-      if (authError) {
-        console.log("User may not exist. Attempting signUp...");
-        const signUpRes = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name,
-              name: name,
-            },
-          },
-        });
-        authError = signUpRes.error;
-        console.log("signUp response:", signUpRes);
-      }
-
-      if (authError) {
-        console.error("Authentication failed:", authError);
-        triggerToast(`Ошибка входа: ${authError.message}`);
-      } else {
-        console.log("Authentication successful!");
-        triggerToast("Успешный вход через Telegram!");
-        setIsRegistered(true);
-        setRegName(name);
-        setRegEmail(email);
-        localStorage.setItem("trueform_user_registered", "true");
-        localStorage.setItem("trueform_user_name", name);
-        localStorage.setItem("trueform_user_email", email);
-
-        // Fetch scan result from DB if scanId exists
-        const pendingScan = localStorage.getItem("trueform_pending_scan_id") || scanId;
-        if (pendingScan) {
-          setScanId(pendingScan);
-          try {
-            const { data: scanData } = await supabase
-              .from("scans")
-              .select("*")
-              .eq("id", pendingScan)
-              .single();
-            
-            if (scanData?.result) {
-              setResult(scanData.result);
-              if (scanData.image_url) {
-                setImage(scanData.image_url);
-              }
-              
-              if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
-                setIsFreePreview(false);
-                setAppState("results");
-              } else {
-                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-                if (freeScanUsed === "true") {
-                  setIsFreePreview(false);
-                  setAppState("paywall");
-                } else {
-                  setIsFreePreview(true);
-                  localStorage.setItem("trueform_free_scan_used", "true");
-                  setAppState("results");
-                }
-              }
-            } else {
-              // Scan exists but no result yet — go to upload
-              console.log("No scan result found, redirecting to upload");
-              setAppState("upload");
-            }
-          } catch (fetchErr) {
-            console.error("Failed to recover scan after Telegram auth:", fetchErr);
-            setAppState("upload");
-          }
-          localStorage.removeItem("trueform_pending_scan_id");
-        } else if (result) {
-          // No pending scan but we have current result in state
-          const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-          if (freeScanUsed === "true") {
-            setIsFreePreview(false);
-            setAppState("paywall");
-          } else {
-            setIsFreePreview(true);
-            localStorage.setItem("trueform_free_scan_used", "true");
-            setAppState("results");
-          }
-        } else {
-          // No scan at all — let user start fresh
-          console.log("No scan data, redirecting to upload");
-          setAppState("upload");
-        }
-      }
-    } catch (err) {
-      console.error("Telegram auth failed:", err);
-      triggerToast("Не удалось войти через Telegram. Попробуйте еще раз.");
-    }
-  };
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -1006,11 +875,9 @@ export default function Home() {
     setIsRegistered(false);
     setRegName("");
     setRegEmail("");
-    setRegTelegram("");
     localStorage.removeItem("trueform_user_registered");
     localStorage.removeItem("trueform_user_name");
     localStorage.removeItem("trueform_user_email");
-    localStorage.removeItem("trueform_user_tg");
     triggerToast("Вы вышли из аккаунта");
     setAppState("landing");
   };
@@ -1609,21 +1476,6 @@ export default function Home() {
 
                 {/* VK OneTap Button */}
                 <div id="VkIdSdkOneTap" className="w-full flex justify-center min-h-[44px] mt-1" />
-
-                {/* Commented out Telegram due to block in RF */}
-                {/* 
-                <div className="relative flex items-center justify-center py-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/5"></div>
-                  </div>
-                  <span className="relative px-3 text-[10px] text-slate-500 bg-[#0c0c0e] uppercase tracking-wider font-bold">или</span>
-                </div>
-
-                <TelegramLoginButton
-                  botUsername="trueformai_bot"
-                  onAuth={handleTelegramAuth}
-                />
-                */}
               </div>
               <div className="text-center text-[10px] text-slate-500 mt-4 leading-tight">
                 Авторизуясь, вы соглашаетесь с Политикой конфиденциальности и Пользовательским соглашением
@@ -1695,12 +1547,12 @@ export default function Home() {
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-bold text-white">Способ 1: Месячная подписка</h4>
-                    <p className="text-[11px] text-slate-500">СБП / Карты РФ. Отмена в любой момент</p>
+                    <h4 className="text-sm font-bold text-white">Способ 1: Оплата полного доступа</h4>
+                    <p className="text-[11px] text-slate-500">СБП / Карты РФ. Единоразовый платеж</p>
                   </div>
                   <div className="text-right">
                     <span className="text-xs line-through text-slate-500 block">990 ₽</span>
-                    <span className="text-lg font-black text-emerald-400">490 ₽<span className="text-xs font-normal text-slate-400">/мес</span></span>
+                    <span className="text-lg font-black text-emerald-400">490 ₽</span>
                   </div>
                 </div>
 
@@ -1727,7 +1579,7 @@ export default function Home() {
                   )}
                 </button>
                 <p className="text-[9px] text-slate-500 text-center leading-normal">
-                  *Подписка продлевается автоматически каждый месяц за 490₽. Вы можете отменить подписку в любой момент в личном кабинете или обратившись в поддержку.
+                  *Единоразовый платеж 490₽. Подписка не оформляется.
                 </p>
               </div>
 
@@ -2699,12 +2551,12 @@ export default function Home() {
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-white">Способ 1: Месячная подписка</h4>
-                      <p className="text-[9px] text-slate-500">СБП / Карты РФ. Отмена в любой момент</p>
+                      <h4 className="text-xs font-bold text-white">Способ 1: Оплата полного доступа</h4>
+                      <p className="text-[9px] text-slate-500">СБП / Карты РФ. Единоразовый платеж</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs line-through text-slate-500 block">990 ₽</span>
-                      <span className="text-xs font-black text-emerald-400">490 ₽<span className="text-[9px] font-normal text-slate-400">/мес</span></span>
+                      <span className="text-xs font-black text-emerald-400">490 ₽</span>
                     </div>
                   </div>
 
@@ -2731,7 +2583,7 @@ export default function Home() {
                     )}
                   </button>
                   <p className="text-[8px] text-slate-500 text-center leading-normal">
-                    *Подписка продлевается автоматически каждый месяц за 490₽. Вы можете отменить подписку в любой момент в личном кабинете или обратившись в поддержку.
+                    *Единоразовый платеж 490₽. Подписка не оформляется.
                   </p>
                 </div>
 
