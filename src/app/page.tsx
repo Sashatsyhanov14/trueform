@@ -238,6 +238,14 @@ export default function Home() {
       
       // Fetch scan result from DB
       try {
+        // Link the anonymous scan to the logged-in user
+        if (session?.user?.id) {
+          await supabase
+            .from("scans")
+            .update({ user_id: session.user.id })
+            .eq("id", pendingScan);
+        }
+
         const { data: scanData } = await supabase
           .from("scans")
           .select("*")
@@ -1183,29 +1191,30 @@ export default function Home() {
     }
 
     if (shared) {
-      const nextSharesCount = 3; // instantly bypass for previewing
-      setSharesCount(nextSharesCount);
-
-      if (scanId) {
+      triggerToast("Отправьте ссылку 3 друзьям. Ваш прогресс обновится, когда они пройдут сканирование!");
+      
+      // Optionally poll database to see if friends actually signed up
+      const checkStatusInterval = setInterval(async () => {
+        if (!scanId) return;
         try {
-          await supabase
-            .from("scans")
-            .update({ 
-              shares_count: nextSharesCount,
-              payment_status: "shared" 
-            })
-            .eq("id", scanId);
-        } catch (dbErr) {
-          console.error("Failed to update shares count in database:", dbErr);
+          const { data } = await supabase.from("scans").select("shares_count, payment_status").eq("id", scanId).single();
+          if (data) {
+            setSharesCount(data.shares_count || 0);
+            if (data.shares_count >= 3 || data.payment_status === "paid" || data.payment_status === "shared") {
+              clearInterval(checkStatusInterval);
+              setIsFreePreview(false);
+              setShowPaywallModal(false);
+              setAppState("results");
+              triggerToast("Ура! Отчет разблокирован через реферальную программу.");
+            }
+          }
+        } catch (e) {
+          // silent
         }
-      }
-
-      setTimeout(() => {
-        setIsFreePreview(false); // Unlock content!
-        setShowPaywallModal(false); // Close checkout modal if open
-        setAppState("results");
-        triggerToast("Ура! Отчет разблокирован через реферальную программу.");
-      }, 1000);
+      }, 5000);
+      
+      // Stop polling after 5 minutes to save resources
+      setTimeout(() => clearInterval(checkStatusInterval), 300000);
     }
   };
 
@@ -1472,15 +1481,7 @@ export default function Home() {
 
             {/* CTAs */}
             <div className="space-y-3">
-              {!image ? (
-                <button
-                  onClick={loadDemoPhotos}
-                  className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-medium py-3.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  Загрузить демо-фотографию
-                </button>
-              ) : (
+              {image && (
                 <button
                   onClick={startScanning}
                   disabled={isUploadingImage}
@@ -1777,7 +1778,7 @@ export default function Home() {
 
         {/* RESULTS STATE */}
         {appState === "results" && result && (
-          <div className="w-full flex flex-col py-2 animate-fade-in max-w-lg pb-20">
+          <div className="w-full flex flex-col py-2 animate-fade-in max-w-lg pb-32">
 
             {/* ===== MAIN TAB: RATING (Оценка) ===== */}
             {mainTab === "rating" && (
@@ -2629,14 +2630,14 @@ export default function Home() {
                   {(() => { let h: {date:string;score:number}[] = []; try { const r = localStorage.getItem("trueform_scan_history"); if(r) h=JSON.parse(r); } catch{} if(!h.length) return <p className="text-[10px] text-slate-600">Нет записей</p>; return h.slice(-5).reverse().map((s,i) => (<div key={i} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0"><span className="text-[10px] text-slate-400">{new Date(s.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long"})}</span><span className="text-[11px] font-bold text-emerald-400">{s.score}%</span></div>)); })()}
                 </div>
 
-                <div className="space-y-2">
-                  <button onClick={resetAll} className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /> Новый скан</button>
+                <div className="space-y-3 pb-8">
+                  <button onClick={resetAll} className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /> Новый скан</button>
                   {isRegistered ? (
-                    <button onClick={handleLogout} className="w-full bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/30 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer">Выйти из аккаунта</button>
+                    <button onClick={handleLogout} className="w-full bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/30 font-semibold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer relative z-50">Выйти из аккаунта</button>
                   ) : (
-                    <button onClick={() => setAppState("register")} className="w-full bg-white hover:bg-slate-100 text-black font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer">Войти / Зарегистрироваться</button>
+                    <button onClick={() => setAppState("register")} className="w-full bg-white hover:bg-slate-100 text-black font-semibold py-4 px-4 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer relative z-50">Войти / Зарегистрироваться</button>
                   )}
-                  <button onClick={() => { localStorage.clear(); resetAll(); triggerToast("Данные сброшены"); }} className="w-full text-slate-600 hover:text-red-400 text-[10px] font-semibold py-2 transition cursor-pointer">Сбросить локальные данные</button>
+                  <button onClick={() => { localStorage.clear(); resetAll(); triggerToast("Данные сброшены"); }} className="w-full text-slate-600 hover:text-red-400 text-[10px] font-semibold py-2 transition cursor-pointer relative z-50">Сбросить локальные данные</button>
                 </div>
               </div>
             )}
