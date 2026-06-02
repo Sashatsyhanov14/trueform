@@ -807,6 +807,57 @@ export default function Home() {
   };
 
 
+  const compressImage = (file: File, maxDimension = 1200, quality = 0.8): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDimension) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -821,19 +872,37 @@ export default function Home() {
     analytics.trackPhotoUpload();
     setIsUploadingImage(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      
+      let uploadPayload: Blob | File = file;
+      let uploadFileName = file.name;
+
+      if (file.type.startsWith('image/')) {
+        try {
+          const compressedBlob = await compressImage(file);
+          uploadPayload = compressedBlob;
+          uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.jpg`;
+        } catch (compressionErr) {
+          console.error("Compression failed, using original file:", compressionErr);
+          const fileExt = file.name.split('.').pop();
+          uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+        }
+      } else {
+        const fileExt = file.name.split('.').pop();
+        uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      }
+
       const { data, error } = await supabase.storage
         .from('scans-photos')
-        .upload(fileName, file);
+        .upload(uploadFileName, uploadPayload, {
+          contentType: file.type.startsWith('image/') ? 'image/jpeg' : file.type,
+          upsert: true
+        });
 
       if (error) {
         console.error("Storage upload failed, using local base64 fallback:", error);
       } else if (data) {
         const { data: { publicUrl } } = supabase.storage
           .from('scans-photos')
-          .getPublicUrl(fileName);
+          .getPublicUrl(uploadFileName);
         setImage(publicUrl);
       }
     } catch (err) {
