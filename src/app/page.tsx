@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import * as analytics from "@/lib/analytics";
+import Script from "next/script";
 import { 
   Camera, 
   Upload, 
@@ -208,6 +209,7 @@ export default function Home() {
   const [regTelegram, setRegTelegram] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [isDev, setIsDev] = useState(false);
+  const [vkidLoaded, setVkidLoaded] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -298,6 +300,166 @@ export default function Home() {
       return () => subscription.unsubscribe();
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).VKIDSDK) {
+      setVkidLoaded(true);
+    }
+  }, []);
+
+  const initVkIdSdk = () => {
+    if (typeof window === "undefined") return null;
+    const VKID = (window as any).VKIDSDK;
+    if (!VKID) return null;
+
+    VKID.Config.init({
+      app: 54619340,
+      redirectUrl: 'https://trueformai.ru/',
+      responseMode: VKID.ConfigResponseMode.Callback,
+      source: VKID.ConfigSource.LOWCODE,
+      scope: 'email',
+    });
+
+    return VKID;
+  };
+
+  const decodeJwt = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        window
+          .atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error("Failed to decode JWT:", e);
+      return null;
+    }
+  };
+
+  const handleVkSdkAuthSuccess = async (data: any) => {
+    const accessToken = data.access_token;
+    const idToken = data.id_token;
+    
+    if (!accessToken) {
+      triggerToast("Ошибка: токен VK не получен");
+      return;
+    }
+
+    let email = "";
+    let name = "VK Пользователь";
+    let vkUserId = "";
+
+    if (idToken) {
+      const decoded = decodeJwt(idToken);
+      if (decoded) {
+        vkUserId = decoded.sub || "";
+        email = decoded.email || "";
+        name = decoded.name || decoded.given_name || `${decoded.first_name || ""} ${decoded.last_name || ""}`.trim() || "VK Пользователь";
+      }
+    }
+
+    triggerToast("Авторизация через VK...");
+    try {
+      // Save pending scan if exists
+      if (scanId) {
+        localStorage.setItem("trueform_pending_scan_id", scanId);
+      }
+
+      const res = await fetch("/api/auth/vk/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken, email, name, vkUserId }),
+      });
+
+      const resData = await res.json();
+      if (resData.error) {
+        triggerToast(`Ошибка VK: ${resData.error}`);
+        return;
+      }
+
+      const { email: finalEmail, password, name: finalName } = resData;
+
+      // 1. Try to sign in
+      const signInRes = await supabase.auth.signInWithPassword({ email: finalEmail, password });
+      let authError = signInRes.error;
+
+      // 2. If user doesn't exist, sign up
+      if (authError) {
+        const signUpRes = await supabase.auth.signUp({
+          email: finalEmail,
+          password,
+          options: {
+            data: {
+              full_name: finalName,
+              name: finalName,
+            },
+          },
+        });
+        authError = signUpRes.error;
+      }
+
+      if (authError) {
+        triggerToast(`Ошибка входа Supabase: ${authError.message}`);
+      } else {
+        triggerToast("Успешный вход!");
+      }
+    } catch (err) {
+      console.error("VK ID authentication failed:", err);
+      triggerToast("Ошибка авторизации VK");
+    }
+  };
+
+  useEffect(() => {
+    if (appState === "register" && vkidLoaded) {
+      const timer = setTimeout(() => {
+        const container = document.getElementById("VkIdSdkOneTap");
+        if (container) {
+          container.innerHTML = "";
+          
+          try {
+            const VKID = initVkIdSdk();
+            if (!VKID) return;
+
+            const oneTap = new VKID.OneTap();
+
+            oneTap.render({
+              container: container,
+              scheme: VKID.Scheme.DARK,
+              showAlternativeLogin: true,
+              styles: {
+                borderRadius: 12,
+                height: 44
+              }
+            })
+            .on(VKID.WidgetEvents.ERROR, (error: any) => {
+              console.error("VK ID Widget Error:", error);
+            })
+            .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload: any) {
+              const code = payload.code;
+              const deviceId = payload.device_id;
+
+              VKID.Auth.exchangeCode(code, deviceId)
+                .then((data: any) => {
+                  handleVkSdkAuthSuccess(data);
+                })
+                .catch((error: any) => {
+                  console.error("VKID Exchange Error:", error);
+                  triggerToast("Ошибка обмена кодом VK ID");
+                });
+            });
+          } catch (e) {
+            console.error("Failed to render VK ID OneTap:", e);
+          }
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [appState, vkidLoaded]);
 
   // Custom logging text simulation during analysis
   useEffect(() => {
@@ -1418,17 +1580,8 @@ export default function Home() {
                   Войти через Google
                 </button>
 
-                {/* VK */}
-                <button
-                  type="button"
-                  onClick={() => handleSocialRegister("vk")}
-                  className="w-full bg-[#0077FF] hover:bg-[#0066DD] text-white py-3.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_2px_8px_rgba(0,119,255,0.2)]"
-                >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M15.08 3h-6.16C4.4 3 3 4.4 3 8.92v6.16C3 19.6 4.4 21 8.92 21h6.16c4.52 0 5.92-1.4 5.92-5.92v-6.16C21 4.4 19.6 3 15.08 3zm2.84 12.16c0 .32-.2.64-.64.64h-1.64c-.48 0-.92-.28-1.32-.68-.8-.8-1.48-1.44-2.08-1.44-.24 0-.44.08-.6.28-.24.28-.32.68-.32 1.16v.48c0 .24-.12.56-.56.56h-1.28c-2.04 0-4.04-1.24-5.32-3.8-.48-.96-.84-2.2-.84-3.24 0-.32.16-.56.56-.56h1.68c.36 0 .56.16.64.48.44 1.16 1.04 2.16 1.56 2.16.16 0 .28-.08.36-.28.16-.6.16-1.52-.36-1.92-.36-.28-.52-.36-.52-.56 0-.16.24-.32.64-.32h2.64c.36 0 .48.16.48.52v2.24c0 .28.08.4.2.4.16 0 .28-.08.44-.28.72-.96 1.16-2.08 1.4-2.48.08-.16.24-.28.52-.28h1.72c.48 0 .6.16.48.52-.28.72-.96 1.96-1.84 2.88-.28.28-.36.44-.08.76.28.32 1.16 1.32 1.76 2.04.44.52.88.92.88 1.28z"/>
-                  </svg>
-                  Войти через VK
-                </button>
+                {/* VK OneTap Button */}
+                <div id="VkIdSdkOneTap" className="w-full flex justify-center min-h-[44px] mt-1" />
 
                 {/* Commented out Telegram due to block in RF */}
                 {/* 
@@ -2617,6 +2770,15 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* VK ID Web SDK */}
+      <Script
+        src="https://unpkg.com/@vkid/sdk@2.6.5/dist-sdk/umd/index.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          setVkidLoaded(true);
+        }}
+      />
     </div>
   );
 }
