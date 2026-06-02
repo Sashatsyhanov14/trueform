@@ -387,6 +387,18 @@ export default function Home() {
         return;
       }
 
+      // If backend successfully authenticated with Supabase, set session directly
+      if (resData.session) {
+        const { error } = await supabase.auth.setSession(resData.session);
+        if (error) {
+          triggerToast(`Ошибка установки сессии: ${error.message}`);
+        } else {
+          triggerToast("Успешный вход!");
+        }
+        return;
+      }
+
+      // Fallback: client-side authentication
       const { email: finalEmail, password, name: finalName } = resData;
 
       // 1. Try to sign in

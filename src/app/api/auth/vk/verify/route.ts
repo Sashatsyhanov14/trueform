@@ -121,6 +121,46 @@ export async function POST(request: Request) {
       .update(vkUserId.toString())
       .digest("hex");
 
+    // Perform Supabase Auth on the server to bypass frontend IP rate limits
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseKey) {
+      const { createClient } = require("@supabase/supabase-js");
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      // 1. Try to sign in
+      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      // 2. If user doesn't exist, sign up
+      if (authError) {
+        const signUpRes = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              name: name,
+            },
+          },
+        });
+        authData = signUpRes.data;
+        authError = signUpRes.error;
+      }
+
+      if (!authError && authData?.session) {
+        return NextResponse.json({
+          session: authData.session,
+          email,
+          name
+        });
+      }
+    }
+
+    // Fallback: return credentials if server auth fails
     return NextResponse.json({
       email,
       password,
