@@ -50,11 +50,11 @@ export const trackPaywallShown = () =>
 
 /** Payment initiated (click "Buy") */
 export const trackPaymentInit = () =>
-  event("begin_checkout", { currency: "RUB", value: 299 });
+  event("begin_checkout", { currency: "RUB", value: 490 });
 
 /** Payment completed */
 export const trackPaymentComplete = () =>
-  event("purchase", { currency: "RUB", value: 299 });
+  event("purchase", { currency: "RUB", value: 490 });
 
 /** Share/referral link copied */
 export const trackShareLink = () =>
