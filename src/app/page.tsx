@@ -217,69 +217,82 @@ export default function Home() {
         window.location.hostname === "127.0.0.1"
       );
 
+      // Helper function to handle successful authentication
+      const handleAuthSuccess = async (session: any) => {
+        setIsRegistered(true);
+        const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || "Пользователь";
+        const email = session.user.email || "";
+        setRegName(name);
+        setRegEmail(email);
+        localStorage.setItem("trueform_user_registered", "true");
+        localStorage.setItem("trueform_user_name", name);
+        localStorage.setItem("trueform_user_email", email);
+        
+        // Clean URL query parameters if they contain auth code to prevent reuse on refresh
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("code") && params.get("state") !== "vk") {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+
+        // Recover pending scan if exists
+        const pendingScan = localStorage.getItem("trueform_pending_scan_id");
+        if (pendingScan) {
+          setScanId(pendingScan);
+          
+          // Fetch scan result from DB
+          try {
+            const { data: scanData } = await supabase
+              .from("scans")
+              .select("*")
+              .eq("id", pendingScan)
+              .single();
+            
+            if (scanData?.result) {
+              setResult(scanData.result);
+              if (scanData.image_url) {
+                setImage(scanData.image_url);
+              }
+              
+              if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
+                setIsFreePreview(false);
+                setAppState("results");
+              } else {
+                const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
+                if (freeScanUsed === "true") {
+                  setIsFreePreview(false);
+                  setAppState("paywall");
+                } else {
+                  setIsFreePreview(true);
+                  localStorage.setItem("trueform_free_scan_used", "true");
+                  setAppState("results");
+                }
+              }
+            }
+          } catch (fetchErr) {
+            console.error("Failed to recover scan after OAuth:", fetchErr);
+          }
+          
+          localStorage.removeItem("trueform_pending_scan_id");
+        }
+      };
+
       // Check for Supabase session and recover state from OAuth
       const checkSession = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          setIsRegistered(true);
-          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || "Пользователь";
-          const email = session.user.email || "";
-          setRegName(name);
-          setRegEmail(email);
-          localStorage.setItem("trueform_user_registered", "true");
-          localStorage.setItem("trueform_user_name", name);
-          localStorage.setItem("trueform_user_email", email);
-          
-          // Recover pending scan if exists
-          const pendingScan = localStorage.getItem("trueform_pending_scan_id");
-          if (pendingScan) {
-            setScanId(pendingScan);
-            
-            // Fetch scan result from DB
-            try {
-              const { data: scanData } = await supabase
-                .from("scans")
-                .select("*")
-                .eq("id", pendingScan)
-                .single();
-              
-              if (scanData?.result) {
-                setResult(scanData.result);
-                if (scanData.image_url) {
-                  setImage(scanData.image_url);
-                }
-                
-                if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
-                  setIsFreePreview(false);
-                  setAppState("results");
-                } else {
-                  const freeScanUsed = localStorage.getItem("trueform_free_scan_used");
-                  if (freeScanUsed === "true") {
-                    setIsFreePreview(false);
-                    setAppState("paywall");
-                  } else {
-                    setIsFreePreview(true);
-                    localStorage.setItem("trueform_free_scan_used", "true");
-                    setAppState("results");
-                  }
-                }
-              }
-            } catch (fetchErr) {
-              console.error("Failed to recover scan after OAuth:", fetchErr);
-            }
-            
-            localStorage.removeItem("trueform_pending_scan_id");
-          }
+          await handleAuthSuccess(session);
         }
       };
       
       checkSession();
       
       // Listen for auth state changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session) {
-          setIsRegistered(true);
-          localStorage.setItem("trueform_user_registered", "true");
+          await handleAuthSuccess(session);
         }
       });
       return () => subscription.unsubscribe();
@@ -1417,7 +1430,8 @@ export default function Home() {
                   Войти через VK
                 </button>
 
-                {/* Divider */}
+                {/* Commented out Telegram due to block in RF */}
+                {/* 
                 <div className="relative flex items-center justify-center py-1">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-white/5"></div>
@@ -1425,11 +1439,11 @@ export default function Home() {
                   <span className="relative px-3 text-[10px] text-slate-500 bg-[#0c0c0e] uppercase tracking-wider font-bold">или</span>
                 </div>
 
-                {/* Telegram (official widget) */}
                 <TelegramLoginButton
                   botUsername="trueformai_bot"
                   onAuth={handleTelegramAuth}
                 />
+                */}
               </div>
               <div className="text-center text-[10px] text-slate-500 mt-4 leading-tight">
                 Авторизуясь, вы соглашаетесь с Политикой конфиденциальности и Пользовательским соглашением
