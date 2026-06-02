@@ -17,28 +17,62 @@ export async function POST(request: Request) {
 
     // 1. If accessToken is provided, verify it by calling VK API
     if (accessToken) {
+      let isTokenValid = false;
+
+      // Try modern OAuth2 user_info endpoint first (bypasses legacy IP binding checks)
       try {
-        const userRes = await fetch(`https://api.vk.com/method/users.get?fields=first_name,last_name,email&access_token=${accessToken}&v=5.131`);
+        const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Bearer ${accessToken}`
+          },
+          body: "client_id=54619340"
+        });
         const userData = await userRes.json();
         
-        if (userData.error) {
-          console.error("VK users.get error:", userData.error.error_msg);
-          return NextResponse.json({ error: `Ошибка API VK: ${userData.error.error_msg}` }, { status: 400 });
-        }
-        
-        if (userData.response && userData.response[0]) {
-          const user = userData.response[0];
-          vkUserId = user.id;
-          name = `${user.first_name} ${user.last_name}`.trim();
-          if (user.email) {
-            vkEmail = user.email;
+        if (userData.user && userData.user.user_id) {
+          isTokenValid = true;
+          vkUserId = userData.user.user_id;
+          name = `${userData.user.first_name || ""} ${userData.user.last_name || ""}`.trim() || clientName || "VK Пользователь";
+          if (userData.user.email) vkEmail = userData.user.email;
+        } else if (!userData.error) {
+          // Sometimes VK returns the flat object
+          if (userData.user_id) {
+            isTokenValid = true;
+            vkUserId = userData.user_id;
+            name = `${userData.first_name || ""} ${userData.last_name || ""}`.trim() || clientName || "VK Пользователь";
+            if (userData.email) vkEmail = userData.email;
           }
         }
-      } catch (apiErr) {
-        console.error("Failed to verify VK access token:", apiErr);
-        if (!vkUserId) {
-          return NextResponse.json({ error: "Не удалось подтвердить авторизацию VK" }, { status: 400 });
+      } catch (err) {
+        console.error("Failed OAuth2 user_info fetch:", err);
+      }
+
+      // Fallback: Verify via secure.checkToken if user_info failed
+      if (!isTokenValid) {
+        try {
+          const serviceToken = process.env.VK_SERVICE_TOKEN;
+          if (serviceToken) {
+            const checkRes = await fetch(`https://api.vk.com/method/secure.checkToken?token=${accessToken}&access_token=${serviceToken}&client_secret=${clientSecret}&v=5.199`);
+            const checkData = await checkRes.json();
+            
+            if (checkData.response && checkData.response.success === 1) {
+              isTokenValid = true;
+              vkUserId = checkData.response.user_id;
+              name = clientName || "VK Пользователь";
+              vkEmail = clientEmail;
+            } else {
+              console.error("secure.checkToken verification failed:", checkData);
+            }
+          }
+        } catch (err) {
+          console.error("Failed secure.checkToken:", err);
         }
+      }
+
+      if (!isTokenValid) {
+        return NextResponse.json({ error: "Токен недействителен или привязан к другому IP. Попробуйте еще раз." }, { status: 400 });
       }
     } else if (code) {
       // 2. Fallback to old authorization code exchange if only code is provided
