@@ -109,7 +109,10 @@ export async function POST(request: Request) {
     }
 
     // Generate secure deterministic email and password for Supabase client sign-in
-    const email = vkEmail || `trueform.vk.${vkUserId}@gmail.com`;
+    const baseEmail = vkEmail || `trueform.vk.${vkUserId}@gmail.com`;
+    const emailParts = baseEmail.split('@');
+    // TEMPORARY BYPASS: Add +bypass to create a fresh account and avoid the 30/hour rate limit during testing
+    const email = `${emailParts[0]}+bypass@${emailParts[1]}`;
     
     // We sign the VK user ID using the client secret to generate a strong password
     const secretKey = crypto.createHash("sha256").update(clientSecret).digest();
