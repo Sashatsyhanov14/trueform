@@ -394,6 +394,7 @@ export default function Home() {
           triggerToast(`Ошибка установки сессии: ${error.message}`);
         } else {
           triggerToast("Успешный вход!");
+          handleAuthSuccess();
         }
         return;
       }
@@ -424,6 +425,7 @@ export default function Home() {
         triggerToast(`Ошибка входа Supabase: ${authError.message}`);
       } else {
         triggerToast("Успешный вход!");
+        handleAuthSuccess();
       }
     } catch (err) {
       console.error("VK ID authentication failed:", err);
