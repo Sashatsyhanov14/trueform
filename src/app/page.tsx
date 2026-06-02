@@ -278,6 +278,8 @@ export default function Home() {
           }
           
           localStorage.removeItem("trueform_pending_scan_id");
+        } else {
+          setAppState("upload");
         }
       };
 
