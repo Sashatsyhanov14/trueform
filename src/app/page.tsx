@@ -212,7 +212,7 @@ export default function Home() {
   const [vkidLoaded, setVkidLoaded] = useState(false);
 
   // Helper function to handle successful authentication
-  const handleAuthSuccess = async (session: any) => {
+  const handleAuthSuccess = async (session?: any) => {
     setIsRegistered(true);
     const name = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || "Пользователь";
     const email = session?.user?.email || "";
@@ -394,7 +394,7 @@ export default function Home() {
           triggerToast(`Ошибка установки сессии: ${error.message}`);
         } else {
           triggerToast("Успешный вход!");
-          handleAuthSuccess();
+          handleAuthSuccess(resData.session);
         }
         return;
       }
@@ -405,6 +405,7 @@ export default function Home() {
       // 1. Try to sign in
       const signInRes = await supabase.auth.signInWithPassword({ email: finalEmail, password });
       let authError = signInRes.error;
+      let sessionData = signInRes.data?.session;
 
       // 2. If user doesn't exist, sign up
       if (authError) {
@@ -419,13 +420,14 @@ export default function Home() {
           },
         });
         authError = signUpRes.error;
+        sessionData = signUpRes.data?.session;
       }
 
       if (authError) {
         triggerToast(`Ошибка входа Supabase: ${authError.message}`);
       } else {
         triggerToast("Успешный вход!");
-        handleAuthSuccess();
+        handleAuthSuccess(sessionData);
       }
     } catch (err) {
       console.error("VK ID authentication failed:", err);
