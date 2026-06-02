@@ -129,27 +129,24 @@ export async function POST(request: Request) {
       const { createClient } = require("@supabase/supabase-js");
       const supabase = createClient(supabaseUrl, supabaseKey);
       
-      // 1. Try to sign in
+      // 1. Always attempt to create the user via Admin API to bypass IP signup rate limits (limit is 3 per hour)
+      // This will fail silently if the user already exists, which is what we want.
+      await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: name,
+          name: name,
+        },
+      });
+      
+      // 2. Sign in to get the session. 
+      // This uses the public API, but sign-ins have a much higher limit (30 per hour) than signups (3 per hour).
       let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      // 2. If user doesn't exist, sign up
-      if (authError) {
-        const signUpRes = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name,
-              name: name,
-            },
-          },
-        });
-        authData = signUpRes.data;
-        authError = signUpRes.error;
-      }
 
       if (!authError && authData?.session) {
         return NextResponse.json({
