@@ -312,9 +312,12 @@ export default function Home() {
     const VKID = (window as any).VKIDSDK;
     if (!VKID) return null;
 
+    // Use current origin to support both trueformai.ru and www.trueformai.ru subdomains dynamically
+    const currentOrigin = typeof window !== "undefined" ? window.location.origin + "/" : "https://trueformai.ru/";
+
     VKID.Config.init({
       app: 54619340,
-      redirectUrl: 'https://trueformai.ru/',
+      redirectUrl: currentOrigin,
       responseMode: VKID.ConfigResponseMode.Callback,
       source: VKID.ConfigSource.LOWCODE,
       scope: 'email',
