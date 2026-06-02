@@ -496,6 +496,9 @@ export default function Home() {
 
     setScanLogs([]);
     setScanProgress(0);
+    
+    // Start real analysis concurrently with fake loading UI
+    fetchAnalysis();
 
     const logs = [
       "⚡ Инициализация сверточной нейросети ResNet-50...",
@@ -516,8 +519,6 @@ export default function Home() {
         currentLogIndex++;
       } else {
         clearInterval(interval);
-        // Load report and proceed to paywall
-        fetchAnalysis();
       }
     }, 450);
 
@@ -540,6 +541,8 @@ export default function Home() {
       analytics.trackScanComplete(data.result?.score || 0);
       if (data.scanId) {
         setScanId(data.scanId);
+        // Save pending scan ID immediately so it's guaranteed to be in localStorage before auth
+        localStorage.setItem("trueform_pending_scan_id", data.scanId);
       }
       
       // Save last scan date for 7-day reminder
