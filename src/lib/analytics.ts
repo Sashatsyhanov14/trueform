@@ -1,7 +1,7 @@
 // Google Analytics 4 — event tracking utility
 // GA_MEASUREMENT_ID is set via NEXT_PUBLIC_GA_ID env variable
 
-export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-RSVBF0RZVN";
+export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-TL8GRMMFPB";
 
 // https://developers.google.com/analytics/devguides/collection/ga4/page-view
 export const pageview = (url: string) => {
