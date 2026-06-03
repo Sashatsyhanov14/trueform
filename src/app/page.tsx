@@ -402,7 +402,6 @@ export default function Home() {
           triggerToast(`Ошибка установки сессии: ${error.message}`);
         } else {
           triggerToast("Успешный вход!");
-          handleAuthSuccess(resData.session);
         }
         return;
       }
@@ -435,7 +434,6 @@ export default function Home() {
         triggerToast(`Ошибка входа Supabase: ${authError.message}`);
       } else {
         triggerToast("Успешный вход!");
-        handleAuthSuccess(sessionData);
       }
     } catch (err) {
       console.error("VK ID authentication failed:", err);
@@ -804,61 +802,6 @@ export default function Home() {
         localStorage.setItem("trueform_user_registered", "true");
         localStorage.setItem("trueform_user_name", name);
         localStorage.setItem("trueform_user_email", email);
-
-        // Fetch scan result from DB if scanId exists
-        const pendingScan = localStorage.getItem("trueform_pending_scan_id") || scanId;
-        if (pendingScan) {
-          setScanId(pendingScan);
-          try {
-            const { data: scanData } = await supabase
-              .from("scans")
-              .select("*")
-              .eq("id", pendingScan)
-              .single();
-            
-            if (scanData?.result) {
-              setResult(scanData.result);
-              if (scanData.image_url) {
-                setImage(scanData.image_url);
-              }
-              
-              if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
-                setIsFreePreview(false);
-                setAppState("results");
-              } else {
-                const lastScanTime = localStorage.getItem("trueform_free_scan_time");
-                const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-                if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
-                  setIsFreePreview(true);
-                  localStorage.setItem("trueform_free_scan_time", Date.now().toString());
-                  setAppState("results");
-                } else {
-                  setIsFreePreview(false);
-                  setAppState("paywall");
-                }
-              }
-            } else {
-              setAppState("upload");
-            }
-          } catch (fetchErr) {
-            console.error("Failed to recover scan after VK auth:", fetchErr);
-            setAppState("upload");
-          }
-          localStorage.removeItem("trueform_pending_scan_id");
-        } else if (result) {
-          const lastScanTime = localStorage.getItem("trueform_free_scan_time");
-          const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-          if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
-            setIsFreePreview(true);
-            localStorage.setItem("trueform_free_scan_time", Date.now().toString());
-            setAppState("results");
-          } else {
-            setIsFreePreview(false);
-            setAppState("paywall");
-          }
-        } else {
-          setAppState("upload");
-        }
       }
     } catch (err) {
       console.error("VK auth failed:", err);
@@ -941,15 +884,9 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show local preview immediately for UX responsiveness
-    const previewReader = new FileReader();
-    previewReader.onloadend = () => {
-      setImage(previewReader.result as string);
-    };
-    previewReader.readAsDataURL(file);
-
     analytics.trackPhotoUpload();
     setIsUploadingImage(true);
+
     try {
       let uploadPayload: Blob | File = file;
       let uploadFileName = file.name;
@@ -959,22 +896,46 @@ export default function Home() {
           const compressedBlob = await compressImage(file);
           uploadPayload = compressedBlob;
           uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.jpg`;
+          
+          // Generate compressed base64 for preview and API fallback immediately
+          const compressedReader = new FileReader();
+          const compressedBase64Promise = new Promise<string>((resolve) => {
+            compressedReader.onloadend = () => resolve(compressedReader.result as string);
+          });
+          compressedReader.readAsDataURL(compressedBlob);
+          const compressedBase64 = await compressedBase64Promise;
+          setImage(compressedBase64);
         } catch (compressionErr) {
           console.error("Compression failed, using original file:", compressionErr);
           const fileExt = file.name.split('.').pop();
           uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+          
+          const originalReader = new FileReader();
+          const originalBase64Promise = new Promise<string>((resolve) => {
+            originalReader.onloadend = () => resolve(originalReader.result as string);
+          });
+          originalReader.readAsDataURL(file);
+          const originalBase64 = await originalBase64Promise;
+          setImage(originalBase64);
         }
       } else {
         const fileExt = file.name.split('.').pop();
         uploadFileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       }
 
-      const { data, error } = await supabase.storage
+      // Race upload with a timeout to prevent UI freeze on network hang
+      const uploadPromise = supabase.storage
         .from('scans-photos')
         .upload(uploadFileName, uploadPayload, {
           contentType: file.type.startsWith('image/') ? 'image/jpeg' : file.type,
           upsert: true
         });
+
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error("Storage upload timeout (8s)")), 8000)
+      );
+
+      const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error("Storage upload failed, using local base64 fallback:", error);
@@ -985,7 +946,7 @@ export default function Home() {
         setImage(publicUrl);
       }
     } catch (err) {
-      console.error("Storage upload exception:", err);
+      console.error("Storage upload exception, using local preview fallback:", err);
     } finally {
       setIsUploadingImage(false);
     }

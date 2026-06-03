@@ -98,7 +98,21 @@ create policy "Allow anonymous payments updates" on public.payments for update u
 create policy "Allow anonymous payments select" on public.payments for select using (true);
 
 -- ========================================
--- NOTE: Storage bucket 'scans-photos'
--- Must be created manually in Supabase Dashboard:
--- Storage → New Bucket → Name: scans-photos → Public: ON
+-- 6. Storage Bucket & Policies for scans-photos
 -- ========================================
+insert into storage.buckets (id, name, public)
+values ('scans-photos', 'scans-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Allow public uploads to scans-photos" on storage.objects;
+create policy "Allow public uploads to scans-photos"
+on storage.objects for insert
+to public
+with check (bucket_id = 'scans-photos');
+
+drop policy if exists "Allow public select from scans-photos" on storage.objects;
+create policy "Allow public select from scans-photos"
+on storage.objects for select
+to public
+using (bucket_id = 'scans-photos');
+

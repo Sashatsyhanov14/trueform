@@ -134,6 +134,49 @@ export async function POST(request: Request) {
       }
     }
 
+    // Decrypt/decode base64 image and upload it to Supabase Storage using service role client
+    let imageUrl = image;
+    if (image.startsWith("data:image/")) {
+      try {
+        const matches = image.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+        if (matches) {
+          const contentType = matches[1];
+          const base64Data = matches[2];
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          const fileExt = contentType.split('/')[1] || 'jpg';
+          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+          
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+          
+          if (supabaseUrl && supabaseKey) {
+            const { createClient } = require("@supabase/supabase-js");
+            const supabaseServer = createClient(supabaseUrl, supabaseKey);
+            
+            const { data: uploadData, error: uploadError } = await supabaseServer.storage
+              .from('scans-photos')
+              .upload(fileName, buffer, {
+                contentType,
+                upsert: true
+              });
+              
+            if (!uploadError && uploadData) {
+              const { data: { publicUrl } } = supabaseServer.storage
+                .from('scans-photos')
+                .getPublicUrl(fileName);
+              imageUrl = publicUrl;
+              console.log("Backend uploaded base64 fallback to storage:", imageUrl);
+            } else {
+              console.error("Backend storage upload failed:", uploadError);
+            }
+          }
+        }
+      } catch (uploadErr) {
+        console.error("Failed to upload base64 to storage on backend:", uploadErr);
+      }
+    }
+
     // Save scan data to Supabase database
     let scanId: string | null = null;
     try {
@@ -145,9 +188,8 @@ export async function POST(request: Request) {
       const { data, error } = await supabase
         .from("scans")
         .insert({
-          image: image.startsWith("data:") && image.length > 500000 
-            ? image.substring(0, 10000) + "...[TRUNCATED]"
-            : image,
+          image: imageUrl,
+          image_url: imageUrl,
           result: report,
           payment_status: isDemo ? "paid" : "pending",
           shares_count: 0,
