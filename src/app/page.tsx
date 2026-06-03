@@ -233,6 +233,8 @@ export default function Home() {
     // Recover pending scan if exists
     const pendingScan = localStorage.getItem("trueform_pending_scan_id");
     if (pendingScan) {
+      // Set to results immediately to prevent parallel auth listener calls from resetting state to upload
+      setAppState("results");
       setScanId(pendingScan);
       
       // Fetch scan result from DB
@@ -257,29 +259,23 @@ export default function Home() {
             setImage(scanData.image_url);
           }
           
-          if (scanData.payment_status === "paid" || scanData.payment_status === "shared") {
-            setIsFreePreview(false);
-            setAppState("results");
-          } else {
-            const lastScanTime = localStorage.getItem("trueform_free_scan_time");
-            const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-            if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
-              setIsFreePreview(true);
-              localStorage.setItem("trueform_free_scan_time", Date.now().toString());
-              setAppState("results");
-            } else {
-              setIsFreePreview(false);
-              setAppState("paywall");
-            }
-          }
+          // Only unlock if already paid/shared
+          setIsFreePreview(!(scanData.payment_status === "paid" || scanData.payment_status === "shared"));
+        } else {
+          setAppState("upload");
         }
       } catch (fetchErr) {
         console.error("Failed to recover scan after OAuth:", fetchErr);
+        setAppState("upload");
       }
       
       localStorage.removeItem("trueform_pending_scan_id");
     } else {
-      setAppState("upload");
+      if (result) {
+        setAppState("results");
+      } else if (appState === "register") {
+        setAppState("upload");
+      }
     }
   };
 
@@ -564,26 +560,16 @@ export default function Home() {
 
       const registered = localStorage.getItem("trueform_user_registered") === "true";
       if (!registered) {
+        setIsFreePreview(true);
         setAppState("register");
       } else {
-        const lastScanTime = localStorage.getItem("trueform_free_scan_time");
-        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-        
-        // If they have never scanned, OR a week has passed, they get a free preview
-        if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
-          setIsFreePreview(true);
-          localStorage.setItem("trueform_free_scan_time", Date.now().toString());
-          setAppState("results");
-        } else {
-          // Used their weekly limit
-          setIsFreePreview(false);
-          setAppState("paywall");
-        }
+        setIsFreePreview(true); // Always locked until payment/invites
+        setAppState("results");
       }
     } catch (e) {
       console.error(e);
-      // Fallback
-      setAppState("paywall");
+      setIsFreePreview(true);
+      setAppState("results");
     }
   };
 
@@ -653,7 +639,7 @@ export default function Home() {
 
   // Poll for scan payment_status updates (e.g. if unlocked via referral or webhook)
   useEffect(() => {
-    if (!scanId || appState !== "paywall") return;
+    if (!scanId || appState !== "results" || !isFreePreview) return;
 
     const interval = setInterval(async () => {
       try {
@@ -669,8 +655,7 @@ export default function Home() {
           }
           if (data.payment_status === "paid" || data.payment_status === "shared") {
             setIsFreePreview(false);
-            setAppState("results");
-            triggerToast("Ура! Ваш отчет разблокирован!");
+            triggerToast("Ура! Ваш отчет полностью разблокирован!");
           }
         }
       } catch (err) {
@@ -710,16 +695,8 @@ export default function Home() {
       }
     }
 
-    const lastScanTime = localStorage.getItem("trueform_free_scan_time");
-    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    if (!lastScanTime || Date.now() - parseInt(lastScanTime, 10) >= ONE_WEEK_MS) {
-      setIsFreePreview(true);
-      localStorage.setItem("trueform_free_scan_time", Date.now().toString());
-      setAppState("results");
-    } else {
-      setIsFreePreview(false);
-      setAppState("paywall");
-    }
+    setIsFreePreview(true); // Always locked until payment/invites
+    setAppState("results");
   };
 
   const handleSocialRegister = async (provider: "google" | "vk") => {
@@ -770,25 +747,34 @@ export default function Home() {
         return;
       }
 
-      const { email, password, name } = data;
+      const { email, password, name, session: serverSession } = data;
+      let authError = null;
 
-      // 1. Try to sign in
-      const signInRes = await supabase.auth.signInWithPassword({ email, password });
-      let authError = signInRes.error;
-
-      // 2. If user doesn't exist, sign up
-      if (authError) {
-        const signUpRes = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name,
-              name: name,
-            },
-          },
+      if (serverSession) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: serverSession.access_token,
+          refresh_token: serverSession.refresh_token,
         });
-        authError = signUpRes.error;
+        authError = sessionError;
+      } else {
+        // 1. Try to sign in with password
+        const signInRes = await supabase.auth.signInWithPassword({ email, password });
+        authError = signInRes.error;
+
+        // 2. If user doesn't exist, sign up
+        if (authError) {
+          const signUpRes = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name,
+                name: name,
+              },
+            },
+          });
+          authError = signUpRes.error;
+        }
       }
 
       if (authError) {
@@ -1439,148 +1425,6 @@ export default function Home() {
               className="mt-6 text-slate-500 hover:text-slate-400 text-xs font-semibold py-1 transition text-center cursor-pointer"
             >
               Сбросить и вернуться назад
-            </button>
-          </div>
-        )}
-
-        {/* PAYWALL STATE */}
-        {appState === "paywall" && (
-          <div className="w-full flex flex-col py-2 animate-fade-in">
-            {/* Header info */}
-            <div className="text-center mb-6">
-              <span className="inline-flex bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full text-pink-400 text-xs font-bold mb-3 animate-pulse-ring">
-                🔐 Отчет сформирован на 97%
-              </span>
-              <h2 className="text-2xl font-extrabold text-white">Получить доступ к отчету</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Мы обнаружили асимметрию плечевого пояса и отклонения в осанке (лордоз, наклон головы).
-              </p>
-            </div>
-
-            {/* What is in report box */}
-            <div className="bg-[#09090b]/80 border border-white/5 p-4 rounded-2xl mb-6 space-y-3 glow-card">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Что внутри отчета:</h4>
-              <ul className="space-y-2.5 text-xs text-slate-300">
-                <li className="flex items-center gap-2">
-                  <span className="bg-emerald-500/10 text-emerald-400 p-0.5 rounded-full shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </span>
-                  <span>Точный расчет симметрии плеч, углов наклона шеи и лопаток</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="bg-emerald-500/10 text-emerald-400 p-0.5 rounded-full shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </span>
-                  <span>Скелетная разметка осанки (плечевой пояс, шея, таз)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="bg-emerald-500/10 text-emerald-400 p-0.5 rounded-full shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </span>
-                  <span>Оценка % подкожного жира и мышечного тонуса</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="bg-emerald-500/10 text-emerald-400 p-0.5 rounded-full shrink-0">
-                    <Check className="w-3.5 h-3.5" />
-                  </span>
-                  <span>Персональный комплекс упражнений и программа на 30 дней</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Action buttons */}
-            <div className="space-y-4">
-              
-              {/* METHOD 1: PAY */}
-              <div className="border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] rounded-2xl p-4 bg-white/5 hover:border-emerald-500/50 hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition duration-300 flex flex-col gap-3 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-bl-lg">
-                  Скидка 50%
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Способ 1: Оплата полного доступа</h4>
-                    <p className="text-[11px] text-slate-500">СБП / Карты РФ. Единоразовый платеж</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs line-through text-slate-500 block">990 ₽</span>
-                    <span className="text-lg font-black text-emerald-400">490 ₽</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handlePayment}
-                  disabled={isProcessing}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-800 text-black font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer"
-                >
-                  {isProcessing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Обработка платежа...
-                    </>
-                  ) : showPaymentSuccess ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-950" />
-                      Оплачено! Открываем...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" />
-                      Оплатить и открыть отчёт
-                    </>
-                  )}
-                </button>
-                <p className="text-[9px] text-slate-500 text-center leading-normal">
-                  *Единоразовый платеж 490₽. Подписка не оформляется.
-                </p>
-              </div>
-
-              {/* METHOD 2: VIRAL FREE */}
-              <div className="border border-white/10 rounded-2xl p-4 bg-white/5 hover:border-purple-500/30 transition flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Способ 2: Бесплатно за репосты</h4>
-                    <p className="text-[11px] text-slate-500">Поделись ссылкой с 3 друзьями в мессенджерах</p>
-                  </div>
-                  <span className="bg-purple-500/20 text-purple-400 text-xs font-bold px-2 py-1 rounded-lg">
-                    {sharesCount} / 3 репостов
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-purple-500 transition-all duration-300"
-                    style={{ width: `${(sharesCount / 3) * 100}%` }}
-                  ></div>
-                </div>
-
-                <button
-                  onClick={handleShare}
-                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Поделиться ссылкой
-                </button>
-              </div>
-
-            </div>
-
-            {isDev && (
-              <button
-                onClick={handleBypass}
-                className="mt-6 text-emerald-500 hover:text-emerald-400 text-xs font-semibold py-1.5 px-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 transition text-center cursor-pointer flex items-center justify-center gap-1 mx-auto"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                Пропустить оплату (Тестирование)
-              </button>
-            )}
-
-            <button
-              onClick={resetAll}
-              className="mt-3 text-slate-500 hover:text-slate-400 text-xs font-semibold py-1 transition text-center"
-            >
-              Сбросить и переделать
             </button>
           </div>
         )}
