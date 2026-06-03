@@ -991,11 +991,6 @@ export default function Home() {
     }
   };
 
-  const loadDemoPhotos = () => {
-    analytics.trackDemoPhoto();
-    setImage("demo-photo");
-  };
-
   const startScanning = () => {
     if (!image) return;
     analytics.trackScanStart();
@@ -1289,7 +1284,7 @@ export default function Home() {
                   </label>
                 ) : (
                   <div className="w-full flex flex-col items-center">
-                    {image !== "demo-photo" ? (
+                    {image ? (
                       <div className="relative w-full h-44 rounded-2xl overflow-hidden border border-white/10 bg-black/40 mb-4 flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
@@ -1304,14 +1299,7 @@ export default function Home() {
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center py-6 mb-4">
-                        <div className="p-3 rounded-full bg-emerald-500/20 text-emerald-400 mb-3">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-semibold text-emerald-400">Демонстрационное фото готово к анализу</span>
-                      </div>
-                    )}
+                    ) : null}
                     
                     <div className="flex gap-2">
                       <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-xs font-semibold transition text-slate-200">
