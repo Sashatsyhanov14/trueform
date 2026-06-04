@@ -280,9 +280,31 @@ export default function Home() {
       // Recover pending scan if exists
       const recovered = await recoverPendingScan(session);
       if (!recovered) {
+        if (!result && session?.user?.id) {
+          // Attempt to fetch the user's most recent scan
+          const { data: latestScan } = await supabase
+            .from("scans")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (latestScan?.result) {
+            setScanId(latestScan.id);
+            setResult(latestScan.result);
+            if (latestScan.image_url) {
+              setImage(latestScan.image_url);
+            }
+            setIsFreePreview(!(latestScan.payment_status === "paid" || latestScan.payment_status === "shared"));
+            setAppState("results");
+            return;
+          }
+        }
+
         if (result) {
           setAppState("results");
-        } else if (appState === "register") {
+        } else if (appState === "register" || appState === "results") {
           setAppState("upload");
         }
       }
@@ -2027,7 +2049,7 @@ export default function Home() {
                   const storageKey = `trueform_checklist_${today}`;
 
                   const habits = [
-                    { id: "workout", icon: "🏋️", label: "Тренировка 30 мин" },
+                    { id: "workout", icon: "🏋️", label: "Тренировка" },
                     { id: "protein",  icon: "🥩", label: "Белок 2г/кг веса" },
                     { id: "water",   icon: "💧", label: "Вода 2 литра" },
                     { id: "stretch", icon: "🧘", label: "Растяжка 10 мин" },
@@ -2222,7 +2244,7 @@ export default function Home() {
                 {isFreePreview && (
                   <div className="border border-purple-500/20 rounded-2xl p-4 bg-purple-500/5 text-center space-y-2">
                     <p className="text-xs text-purple-300 font-bold flex items-center justify-center gap-1">
-                      <Lock className="w-3.5 h-3.5" /> Полный 30-дневный план тренировок заблокирован
+                      <Lock className="w-3.5 h-3.5" /> Полный план тренировок заблокирован
                     </p>
                     <p className="text-[10px] text-slate-400 leading-relaxed">
                       Чтобы получить пошаговую программу тренировок под ваши углы осанки и дисбалансы, откройте полный отчет.
