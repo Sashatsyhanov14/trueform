@@ -1161,7 +1161,7 @@ export default function Home() {
                   <span className="text-xs text-[var(--text-secondary)] font-semibold max-w-[100px] truncate">{regName}</span>
                   <button 
                     onClick={handleLogout}
-                    className="text-[10px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-full transition cursor-pointer border hover:bg-red-500/10"
+                    className="relative z-50 text-[10px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-full transition cursor-pointer border hover:bg-red-500/10 active:scale-95"
                     style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}
                   >
                     Выйти
@@ -1258,13 +1258,43 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5" strokeWidth={2} />
               </button>
 
-              {isRegistered && result && (
+              {isRegistered && (
                 <button
-                  onClick={() => setAppState("results")}
-                  className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+                  onClick={async () => {
+                    if (result) {
+                      setAppState("results");
+                    } else {
+                      setIsProcessing(true);
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (session?.user?.id) {
+                        const { data: latestScan } = await supabase
+                          .from("scans")
+                          .select("*")
+                          .eq("user_id", session.user.id)
+                          .order("created_at", { ascending: false })
+                          .limit(1)
+                          .single();
+                        
+                        if (latestScan?.result) {
+                          setScanId(latestScan.id);
+                          setResult(latestScan.result);
+                          if (latestScan.image_url) setImage(latestScan.image_url);
+                          setIsFreePreview(!(latestScan.payment_status === "paid" || latestScan.payment_status === "shared"));
+                          setAppState("results");
+                        } else {
+                          triggerToast("У вас еще нет сохраненных сканирований. Сделайте первый скан!");
+                        }
+                      } else {
+                        triggerToast("Ошибка сессии. Пожалуйста, войдите заново.");
+                      }
+                      setIsProcessing(false);
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className={`w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer active:scale-95 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   <User className="w-4 h-4" />
-                  Мой профиль
+                  {isProcessing ? "Загрузка..." : "Мой профиль"}
                 </button>
               )}
             </div>
