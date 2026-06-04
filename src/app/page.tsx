@@ -1264,7 +1264,7 @@ export default function Home() {
                   className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer"
                 >
                   <User className="w-4 h-4" />
-                  Мой результат
+                  Мой профиль
                 </button>
               )}
             </div>
