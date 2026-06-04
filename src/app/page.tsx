@@ -1248,14 +1248,26 @@ export default function Home() {
             </div>
 
             {/* CTA — solid accent, no gradient, no glow */}
-            <button
-              onClick={() => setAppState("upload")}
-              className="relative z-20 w-full max-w-sm font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer active:scale-[0.98]"
-              style={{ background: 'var(--accent)', color: 'var(--accent-text)', touchAction: 'manipulation' }}
-            >
-              Начать анализ
-              <ArrowRight className="w-5 h-5" strokeWidth={2} />
-            </button>
+            <div className="w-full max-w-sm flex flex-col gap-3">
+              <button
+                onClick={() => setAppState("upload")}
+                className="relative z-20 w-full font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer active:scale-[0.98]"
+                style={{ background: 'var(--accent)', color: 'var(--accent-text)', touchAction: 'manipulation' }}
+              >
+                Начать анализ
+                <ArrowRight className="w-5 h-5" strokeWidth={2} />
+              </button>
+
+              {isRegistered && result && (
+                <button
+                  onClick={() => setAppState("results")}
+                  className="w-full bg-[#18181b] hover:bg-[#202025] text-slate-300 border border-white/10 font-semibold py-3.5 px-6 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+                >
+                  <User className="w-4 h-4" />
+                  Мой результат
+                </button>
+              )}
+            </div>
 
             {/* Social proof — minimal */}
             <div className="mt-6 flex items-center gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
