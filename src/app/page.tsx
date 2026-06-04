@@ -403,16 +403,16 @@ export default function Home() {
         return;
       }
 
-      // If backend successfully authenticated with Supabase, set session directly
+      // If backend successfully authenticated with Supabase, try setSession first
       if (resData.session) {
-        const { error } = await supabase.auth.setSession(resData.session);
-        if (error) {
-          triggerToast(`Ошибка установки сессии: ${error.message}`);
-        } else {
+        const { error } = await supabase.auth.setSession({
+          access_token: resData.session.access_token,
+          refresh_token: resData.session.refresh_token,
+        });
+        if (!error) {
           triggerToast("Успешный вход!");
           setIsRegistered(true);
           localStorage.setItem("trueform_user_registered", "true");
-          // Explicitly recover pending scan
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           const recovered = await recoverPendingScan(currentSession);
           if (!recovered) {
@@ -423,8 +423,10 @@ export default function Home() {
               setAppState("upload");
             }
           }
+          return;
         }
-        return;
+        // setSession failed — fall through to password-based auth below
+        console.warn("setSession failed, falling back to signInWithPassword:", error.message);
       }
 
       // Fallback: client-side authentication
