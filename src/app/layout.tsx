@@ -74,6 +74,9 @@ const jsonLd = {
   }
 };
 
+import { Suspense } from "react";
+import { PostHogProvider, PostHogPageView } from "@/providers/PostHogProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -109,7 +112,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <PostHogPageView />
+        </Suspense>
+        <PostHogProvider>{children}</PostHogProvider>
+      </body>
     </html>
   );
 }
