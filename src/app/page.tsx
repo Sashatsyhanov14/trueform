@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import * as analytics from "@/lib/analytics";
 import Script from "next/script";
@@ -209,73 +209,85 @@ export default function Home() {
   const [regEmail, setRegEmail] = useState("");
   const [isDev, setIsDev] = useState(false);
   const [vkidLoaded, setVkidLoaded] = useState(false);
+  const authSuccessRunning = useRef(false);
 
-  // Helper function to handle successful authentication
-  const handleAuthSuccess = async (session?: any) => {
-    setIsRegistered(true);
-    const name = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || "Пользователь";
-    const email = session?.user?.email || "";
-    setRegName(name);
-    setRegEmail(email);
-    localStorage.setItem("trueform_user_registered", "true");
-    localStorage.setItem("trueform_user_name", name);
-    localStorage.setItem("trueform_user_email", email);
-    
-    // Clean URL query parameters if they contain auth code to prevent reuse on refresh
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("code") && params.get("state") !== "vk") {
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-      }
-    }
-
-    // Recover pending scan if exists
+  // Shared helper: recover pending scan from localStorage and transition to results
+  const recoverPendingScan = async (session?: any) => {
     const pendingScan = localStorage.getItem("trueform_pending_scan_id");
-    if (pendingScan) {
-      // Set to results immediately to prevent parallel auth listener calls from resetting state to upload
-      setAppState("results");
-      setScanId(pendingScan);
-      
-      // Fetch scan result from DB
-      try {
-        // Link the anonymous scan to the logged-in user
-        if (session?.user?.id) {
-          await supabase
-            .from("scans")
-            .update({ user_id: session.user.id })
-            .eq("id", pendingScan);
-        }
+    if (!pendingScan) return false;
 
-        const { data: scanData } = await supabase
+    // Immediately transition so parallel calls don't reset state
+    setAppState("results");
+    setScanId(pendingScan);
+    localStorage.removeItem("trueform_pending_scan_id");
+
+    try {
+      // Link the anonymous scan to the logged-in user
+      if (session?.user?.id) {
+        await supabase
           .from("scans")
-          .select("*")
-          .eq("id", pendingScan)
-          .single();
-        
-        if (scanData?.result) {
-          setResult(scanData.result);
-          if (scanData.image_url) {
-            setImage(scanData.image_url);
-          }
-          
-          // Only unlock if already paid/shared
-          setIsFreePreview(!(scanData.payment_status === "paid" || scanData.payment_status === "shared"));
-        } else {
+          .update({ user_id: session.user.id })
+          .eq("id", pendingScan);
+      }
+
+      const { data: scanData } = await supabase
+        .from("scans")
+        .select("*")
+        .eq("id", pendingScan)
+        .single();
+
+      if (scanData?.result) {
+        setResult(scanData.result);
+        if (scanData.image_url) {
+          setImage(scanData.image_url);
+        }
+        setIsFreePreview(!(scanData.payment_status === "paid" || scanData.payment_status === "shared"));
+      } else {
+        setAppState("upload");
+      }
+    } catch (fetchErr) {
+      console.error("Failed to recover scan after OAuth:", fetchErr);
+      setAppState("upload");
+    }
+    return true;
+  };
+
+  // Helper function to handle successful authentication (from onAuthStateChange / checkSession)
+  const handleAuthSuccess = async (session?: any) => {
+    // Guard against concurrent/duplicate calls
+    if (authSuccessRunning.current) return;
+    authSuccessRunning.current = true;
+
+    try {
+      setIsRegistered(true);
+      const name = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || "Пользователь";
+      const email = session?.user?.email || "";
+      setRegName(name);
+      setRegEmail(email);
+      localStorage.setItem("trueform_user_registered", "true");
+      localStorage.setItem("trueform_user_name", name);
+      localStorage.setItem("trueform_user_email", email);
+
+      // Clean URL query parameters if they contain auth code to prevent reuse on refresh
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("code") && params.get("state") !== "vk") {
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }
+
+      // Recover pending scan if exists
+      const recovered = await recoverPendingScan(session);
+      if (!recovered) {
+        if (result) {
+          setAppState("results");
+        } else if (appState === "register") {
           setAppState("upload");
         }
-      } catch (fetchErr) {
-        console.error("Failed to recover scan after OAuth:", fetchErr);
-        setAppState("upload");
       }
-      
-      localStorage.removeItem("trueform_pending_scan_id");
-    } else {
-      if (result) {
-        setAppState("results");
-      } else if (appState === "register") {
-        setAppState("upload");
-      }
+    } finally {
+      authSuccessRunning.current = false;
     }
   };
 
@@ -398,6 +410,19 @@ export default function Home() {
           triggerToast(`Ошибка установки сессии: ${error.message}`);
         } else {
           triggerToast("Успешный вход!");
+          setIsRegistered(true);
+          localStorage.setItem("trueform_user_registered", "true");
+          // Explicitly recover pending scan
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const recovered = await recoverPendingScan(currentSession);
+          if (!recovered) {
+            if (result) {
+              setIsFreePreview(true);
+              setAppState("results");
+            } else {
+              setAppState("upload");
+            }
+          }
         }
         return;
       }
@@ -430,6 +455,18 @@ export default function Home() {
         triggerToast(`Ошибка входа Supabase: ${authError.message}`);
       } else {
         triggerToast("Успешный вход!");
+        setIsRegistered(true);
+        localStorage.setItem("trueform_user_registered", "true");
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const recovered = await recoverPendingScan(currentSession);
+        if (!recovered) {
+          if (result) {
+            setIsFreePreview(true);
+            setAppState("results");
+          } else {
+            setAppState("upload");
+          }
+        }
       }
     } catch (err) {
       console.error("VK ID authentication failed:", err);
@@ -788,6 +825,20 @@ export default function Home() {
         localStorage.setItem("trueform_user_registered", "true");
         localStorage.setItem("trueform_user_name", name);
         localStorage.setItem("trueform_user_email", email);
+
+        // Explicitly recover pending scan and go to results
+        // (don't rely on onAuthStateChange which may race or not fire)
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const recovered = await recoverPendingScan(currentSession);
+        if (!recovered) {
+          // No pending scan but user is authed — send to upload
+          if (result) {
+            setIsFreePreview(true);
+            setAppState("results");
+          } else {
+            setAppState("upload");
+          }
+        }
       }
     } catch (err) {
       console.error("VK auth failed:", err);
