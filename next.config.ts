@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here - trigger build after env update */
+  async rewrites() {
+    return [
+      {
+        source: '/supabase-proxy/:path*',
+        destination: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
