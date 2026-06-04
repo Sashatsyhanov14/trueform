@@ -1,12 +1,14 @@
 // Google Analytics 4 — event tracking utility
 // GA_MEASUREMENT_ID is set via NEXT_PUBLIC_GA_ID env variable
 
+import posthog from 'posthog-js';
+
 export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-TL8GRMMFPB";
 
 // https://developers.google.com/analytics/devguides/collection/ga4/page-view
 export const pageview = (url: string) => {
-  if (typeof window === "undefined" || !GA_ID) return;
-  (window as any).gtag?.("config", GA_ID, { page_path: url });
+  if (typeof window === "undefined") return;
+  if (GA_ID) (window as any).gtag?.("config", GA_ID, { page_path: url });
 };
 
 // Generic event helper
@@ -14,8 +16,13 @@ export const event = (
   action: string,
   params?: Record<string, string | number | boolean | null>
 ) => {
-  if (typeof window === "undefined" || !GA_ID) return;
-  (window as any).gtag?.("event", action, params);
+  if (typeof window === "undefined") return;
+  if (GA_ID) (window as any).gtag?.("event", action, params);
+  
+  // PostHog tracking
+  try {
+    posthog.capture(action, params);
+  } catch(e) {}
 };
 
 // ──────── Predefined Events ────────
