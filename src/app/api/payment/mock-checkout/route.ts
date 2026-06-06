@@ -22,6 +22,21 @@ export async function GET(request: Request) {
       .update({ status: "succeeded" })
       .eq("scan_id", scanId)
       .eq("status", "pending");
+
+    // Activate 30-day subscription for the user in mock
+    const { data: scanData } = await supabase
+      .from("scans")
+      .select("user_id")
+      .eq("id", scanId)
+      .single();
+
+    if (scanData?.user_id) {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("users")
+        .update({ subscription_expires_at: expiresAt })
+        .eq("id", scanData.user_id);
+    }
   } catch (dbErr) {
     console.error("Failed to update status in mock checkout:", dbErr);
   }

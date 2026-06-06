@@ -199,14 +199,20 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"general" | "posture" | "body" | "muscles">("general");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
-  const [isFreePreview, setIsFreePreview] = useState(false);
-  const [showPaywallModal, setShowPaywallModal] = useState(false);
-  const [checklistTs, setChecklistTs] = useState(0); // forces checklist re-render
-  const [mainTab, setMainTab] = useState<"rating" | "plan" | "progress" | "profile">("rating");
   const [isRegistered, setIsRegistered] = useState(false);
   const [regName, setRegName] = useState("");
   const [regTelegram, setRegTelegram] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [isFreePreviewState, setIsFreePreviewState] = useState(false);
+  const hasActiveSubscription = subscriptionExpiresAt && new Date(subscriptionExpiresAt) > new Date();
+  const isFreePreview = isFreePreviewState && !hasActiveSubscription && regEmail?.toLowerCase() !== "alexandertsyhanov@gmail.com";
+  const setIsFreePreview = (val: boolean) => {
+    setIsFreePreviewState(val);
+  };
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [checklistTs, setChecklistTs] = useState(0); // forces checklist re-render
+  const [mainTab, setMainTab] = useState<"rating" | "plan" | "progress" | "profile">("rating");
   const [isDev, setIsDev] = useState(false);
   const [vkidLoaded, setVkidLoaded] = useState(false);
   const authSuccessRunning = useRef(false);
@@ -224,10 +230,43 @@ export default function Home() {
     try {
       // Link the anonymous scan to the logged-in user
       if (session?.user?.id) {
+        // Fetch user's subscription status first
+        const { data: userData } = await supabase
+          .from("users")
+          .select("subscription_expires_at")
+          .eq("id", session.user.id)
+          .single();
+
+        const hasSub = userData?.subscription_expires_at && new Date(userData.subscription_expires_at) > new Date();
+        const isBypassUser = session.user.email?.toLowerCase() === "alexandertsyhanov@gmail.com";
+        const shouldUnlock = hasSub || isBypassUser;
+
+        // Fetch scan status
+        const { data: scanData } = await supabase
+          .from("scans")
+          .select("payment_status")
+          .eq("id", pendingScan)
+          .single();
+
+        const isPaid = scanData?.payment_status === "paid" || shouldUnlock;
+
         await supabase
           .from("scans")
-          .update({ user_id: session.user.id })
+          .update({ 
+            user_id: session.user.id,
+            ...(shouldUnlock ? { payment_status: "paid" } : {})
+          })
           .eq("id", pendingScan);
+
+        if (isPaid && !hasSub && !isBypassUser) {
+          // If this scan was paid, and they don't have an active subscription yet, grant 30 days!
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          await supabase
+            .from("users")
+            .update({ subscription_expires_at: expiresAt })
+            .eq("id", session.user.id);
+          setSubscriptionExpiresAt(expiresAt);
+        }
       }
 
       const { data: scanData } = await supabase
@@ -267,7 +306,21 @@ export default function Home() {
       localStorage.setItem("trueform_user_registered", "true");
       localStorage.setItem("trueform_user_name", name);
       localStorage.setItem("trueform_user_email", email);
-
+      // Fetch subscription status from public.users table
+      try {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("subscription_expires_at")
+          .eq("id", session.user.id)
+          .single();
+        if (userData?.subscription_expires_at) {
+          setSubscriptionExpiresAt(userData.subscription_expires_at);
+        } else {
+          setSubscriptionExpiresAt(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user subscription:", err);
+      }
       // Clean URL query parameters if they contain auth code to prevent reuse on refresh
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -620,11 +673,25 @@ export default function Home() {
       } catch {}
 
       const registered = localStorage.getItem("trueform_user_registered") === "true";
+      const hasSub = subscriptionExpiresAt && new Date(subscriptionExpiresAt) > new Date();
+      const isBypassUser = regEmail?.toLowerCase() === "alexandertsyhanov@gmail.com";
+      
+      if ((hasSub || isBypassUser) && data.scanId) {
+        try {
+          await supabase
+            .from("scans")
+            .update({ payment_status: "paid" })
+            .eq("id", data.scanId);
+        } catch (dbErr) {
+          console.error("Failed to unlock scan under active subscription:", dbErr);
+        }
+      }
+
       if (!registered) {
         setIsFreePreview(true);
         setAppState("register");
       } else {
-        setIsFreePreview(true); // Always locked until payment/invites
+        setIsFreePreview(!(hasSub || isBypassUser));
         setAppState("results");
       }
     } catch (e) {
@@ -882,6 +949,7 @@ export default function Home() {
     setIsRegistered(false);
     setRegName("");
     setRegEmail("");
+    setSubscriptionExpiresAt(null);
     localStorage.removeItem("trueform_user_registered");
     localStorage.removeItem("trueform_user_name");
     localStorage.removeItem("trueform_user_email");

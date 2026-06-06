@@ -17,6 +17,7 @@ create table public.users (
   id uuid references auth.users(id) on delete cascade primary key,
   email text unique not null,
   name text,
+  subscription_expires_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
