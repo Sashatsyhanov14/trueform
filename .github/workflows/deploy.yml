@@ -26,7 +26,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://ljqnwmtzaoubimoguann.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqcW53bXR6YW91Ymltb2d1YW5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NDU0MDAsImV4cCI6MjA5NDIyMTQwMH0.qKAGUeemuGMbkoKOJtfFCt5D8in7m6bWAZ-65EFULG4
           NEXT_PUBLIC_POSTHOG_KEY: phc_VGCu7BOgl1wga4FPm3xozF9uoazetZQzUHtcLijEM9Y
-          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          NEXT_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
 
       - name: Copy Files to VPS via SCP
         uses: appleboy/scp-action@master
