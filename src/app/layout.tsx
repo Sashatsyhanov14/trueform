@@ -15,7 +15,7 @@ const ibmPlexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-TL8GRMMFPB";
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-J4LP073K7C";
 
 export const metadata: Metadata = {
   title: "TrueForm — ИИ-анализ осанки и состояния тела онлайн",

@@ -3,7 +3,7 @@
 
 import posthog from 'posthog-js';
 
-export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-TL8GRMMFPB";
+export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-J4LP073K7C";
 
 // https://developers.google.com/analytics/devguides/collection/ga4/page-view
 export const pageview = (url: string) => {
