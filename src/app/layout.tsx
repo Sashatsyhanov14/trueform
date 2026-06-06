@@ -88,7 +88,6 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} h-full antialiased`}
     >
       <head>
-        {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -99,6 +98,7 @@ export default function RootLayout({
           <PostHogPageView />
         </Suspense>
         <PostHogProvider>{children}</PostHogProvider>
+        {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
       </body>
     </html>
   );
