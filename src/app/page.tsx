@@ -1331,6 +1331,7 @@ export default function Home() {
                   onClick={async () => {
                     if (result) {
                       setAppState("results");
+                      setMainTab("profile");
                     } else {
                       setIsProcessing(true);
                       const { data: { session } } = await supabase.auth.getSession();
@@ -1349,6 +1350,7 @@ export default function Home() {
                           if (latestScan.image_url) setImage(latestScan.image_url);
                           setIsFreePreview(!(latestScan.payment_status === "paid" || latestScan.payment_status === "shared"));
                           setAppState("results");
+                          setMainTab("profile");
                         } else {
                           triggerToast("У вас еще нет сохраненных сканирований. Сделайте первый скан!");
                         }
