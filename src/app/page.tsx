@@ -743,7 +743,7 @@ export default function Home() {
                 setResult(data.result);
                 setSharesCount(data.shares_count || 0);
                 setAppState("results");
-                triggerToast("Оплата успешно подтверждена! Добро пожаловать.");
+                triggerToast("Подписка успешно активирована! Добро пожаловать.");
               }
             } catch (fetchErr) {
               console.error("Failed to fetch scan results after payment:", fetchErr);
@@ -2453,8 +2453,26 @@ export default function Home() {
                 )}
 
                 <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                  <div><p className="text-[11px] font-bold text-white">Подписка</p><p className={`text-[10px] font-semibold ${isFreePreview ? "text-amber-400" : "text-emerald-400"}`}>{isFreePreview ? "Бесплатный просмотр" : "✓ Активна"}</p></div>
-                  {isFreePreview && <button onClick={() => setShowPaywallModal(true)} className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-emerald-500/20 transition">Активировать</button>}
+                  <div>
+                    <p className="text-[11px] font-bold text-white">Подписка</p>
+                    <p className={`text-[10px] font-semibold ${isFreePreview ? "text-amber-400" : "text-emerald-400"}`}>
+                      {isFreePreview 
+                        ? "Бесплатный просмотр" 
+                        : regEmail?.toLowerCase() === "alexandertsyhanov@gmail.com"
+                          ? "✓ Premium Доступ"
+                          : subscriptionExpiresAt 
+                            ? `✓ Активна до ${new Date(subscriptionExpiresAt).toLocaleDateString("ru-RU")}`
+                            : "✓ Активна"}
+                    </p>
+                  </div>
+                  {isFreePreview && (
+                    <button 
+                      onClick={() => setShowPaywallModal(true)} 
+                      className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-emerald-500/20 transition"
+                    >
+                      Активировать
+                    </button>
+                  )}
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
                   <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
@@ -2517,9 +2535,9 @@ export default function Home() {
                 <div className="w-10 h-10 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                   <Sparkles className="w-5 h-5 animate-pulse" />
                 </div>
-                <h3 className="text-base font-extrabold text-white">Активировать полный отчёт</h3>
+                <h3 className="text-base font-extrabold text-white">Активировать TrueForm Premium</h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Получите неограниченный доступ к деталям осанки, пропорций тела и персональной программе тренировок.
+                  Получите полный неограниченный доступ ко всем анализам осанки, пропорциям тела и персональной программе тренировок на 30 дней.
                 </p>
               </div>
 
@@ -2532,8 +2550,8 @@ export default function Home() {
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-white">Способ 1: Оплата полного доступа</h4>
-                      <p className="text-[9px] text-slate-500">СБП / Карты РФ. Единоразовый платеж</p>
+                      <h4 className="text-xs font-bold text-white">Способ 1: Подписка на 1 месяц</h4>
+                      <p className="text-[9px] text-slate-500">СБП / Карты РФ. Доступ на 30 дней</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs line-through text-slate-500 block">990 ₽</span>
@@ -2549,22 +2567,22 @@ export default function Home() {
                     {isProcessing ? (
                       <>
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Обработка платежа...
+                        Активация подписки...
                       </>
                     ) : showPaymentSuccess ? (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-950" />
-                        Оплачено! Открываем...
+                        Подписка активна! Открываем...
                       </>
                     ) : (
                       <>
                         <CreditCard className="w-3.5 h-3.5" />
-                        Оплатить и открыть отчёт
+                        Оформить подписку за 490 ₽
                       </>
                     )}
                   </button>
                   <p className="text-[8px] text-slate-500 text-center leading-normal">
-                    *Единоразовый платеж 490₽. Подписка не оформляется.
+                    *Доступ на 30 дней. Автосписания отсутствуют — платите только когда пользуетесь.
                   </p>
                 </div>
 

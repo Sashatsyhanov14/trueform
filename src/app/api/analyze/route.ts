@@ -207,7 +207,7 @@ export async function POST(request: Request) {
           try {
             const { data: parentData, error: parentError } = await supabase
               .from("scans")
-              .select("shares_count, payment_status")
+              .select("shares_count, payment_status, user_id")
               .eq("id", parentScanId)
               .single();
 
@@ -222,6 +222,14 @@ export async function POST(request: Request) {
                   payment_status: shouldUnlock ? "paid" : parentData.payment_status
                 })
                 .eq("id", parentScanId);
+
+              if (shouldUnlock && parentData.user_id) {
+                const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                await supabase
+                  .from("users")
+                  .update({ subscription_expires_at: expiresAt })
+                  .eq("id", parentData.user_id);
+              }
             }
           } catch (refErr) {
             console.error("Failed to update parent referral stats:", refErr);
