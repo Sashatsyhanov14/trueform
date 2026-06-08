@@ -27,13 +27,21 @@ export async function POST(request: Request) {
 
     // Calculate secret key using bot token
     // HMAC-SHA256 signature verification for Telegram Mini Apps
+    console.log("TMA Auth Verification Request received");
+    console.log("BOT_TOKEN in env:", botToken ? `Length: ${botToken.length}, prefix: ${botToken.substring(0, 5)}...` : "UNDEFINED");
+    
     const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
     const hmac = crypto
       .createHmac("sha256", secretKey)
       .update(dataCheckString)
       .digest("hex");
 
+    console.log("Data Check String:\n" + dataCheckString);
+    console.log("Computed HMAC:", hmac);
+    console.log("Received Hash:", hash);
+
     if (hmac !== hash) {
+      console.error("TMA Auth signature mismatch!");
       return NextResponse.json({ error: "Недействительная подпись авторизации Telegram" }, { status: 400 });
     }
 
