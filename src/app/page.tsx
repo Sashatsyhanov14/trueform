@@ -206,6 +206,7 @@ export default function Home() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false);
   const [isTelegramLoggingIn, setIsTelegramLoggingIn] = useState(false);
+  const [isDetectingTg, setIsDetectingTg] = useState(true);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
   const [isFreePreviewState, setIsFreePreviewState] = useState(false);
   const hasActiveSubscription = subscriptionExpiresAt && new Date(subscriptionExpiresAt) > new Date();
@@ -390,6 +391,7 @@ export default function Home() {
         const initData = tg.initData;
         if (initData) {
           setIsTelegramMiniApp(true);
+          setIsDetectingTg(false);
           
           const performTelegramAutoLogin = async () => {
             try {
@@ -469,7 +471,11 @@ export default function Home() {
           };
 
           performTelegramAutoLogin();
+        } else {
+          setIsDetectingTg(false);
         }
+      } else {
+        setIsDetectingTg(false);
       }
 
       // Check for Supabase session and recover state from OAuth
@@ -1303,6 +1309,51 @@ export default function Home() {
     setIsFreePreview(false);
     setShowPaywallModal(false);
   };
+
+  const showBlockScreen = !isTelegramMiniApp && !isDetectingTg && !isDev && !(typeof window !== "undefined" && window.location.search.includes("dev=true"));
+
+  if (isDetectingTg) {
+    return (
+      <div className="min-h-screen bg-[#020203] text-white flex flex-col items-center justify-center p-6 font-body">
+        <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+        <div className="text-xs text-slate-400 font-semibold">Инициализация TrueForm...</div>
+      </div>
+    );
+  }
+
+  if (showBlockScreen) {
+    return (
+      <div className="min-h-screen bg-[#020203] text-white flex flex-col items-center justify-center p-6 font-body relative overflow-hidden">
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] pointer-events-none -z-10" style={{ background: 'oklch(0.72 0.08 175 / 0.04)' }}></div>
+        <div className="w-full max-w-sm text-center bg-[#09090b]/80 border border-white/5 p-8 rounded-3xl glow-card space-y-6">
+          <div className="w-20 h-20 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(6,182,212,0.15)] animate-pulse">
+            <svg className="w-10 h-10 text-cyan-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15.82-1.89 8.08-2.05 8.78-.06.28-.21.57-.46.7-.24.13-.53.11-.75-.05-.33-.24-5.3-3.48-5.75-3.87-.4-.35-.06-.57.17-.79.52-.49 4.56-4.27 4.96-4.66.19-.19.08-.29-.14-.15-.3.2-5.46 3.56-5.94 3.88-.45.3-.87.21-1.12.04-1.01-.67-2.02-1.35-3.03-2.02-.27-.18-.46-.43-.37-.77.09-.34.45-.53.79-.66 4.39-1.74 13.1-5.15 13.92-5.48.5-.2.95-.21 1.25.04.28.24.38.63.31.98z"/>
+            </svg>
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-display), Space Grotesk, sans-serif' }}>
+              TrueForm AI
+            </h1>
+            <h2 className="text-base font-semibold text-cyan-400">
+              Биомеханический анализ тела
+            </h2>
+            <p className="text-sm text-slate-400 leading-relaxed pt-2">
+              Данный сервис доступен исключительно внутри нашего официального Telegram Mini App. Пожалуйста, перейдите в Telegram-бота для проведения анализа.
+            </p>
+          </div>
+
+          <a
+            href="https://t.me/trueformai_bot"
+            className="block w-full text-center bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-4 px-6 rounded-xl transition duration-200 shadow-[0_4px_14px_rgba(6,182,212,0.3)] active:scale-[0.98] cursor-pointer"
+          >
+            Открыть в Telegram
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen text-[var(--text-primary)] antialiased overflow-x-hidden" style={{ background: 'var(--bg)' }}>
