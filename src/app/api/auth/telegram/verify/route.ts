@@ -3,8 +3,8 @@ import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
-    const { authData } = await request.json();
-    if (!authData || !authData.hash || !authData.id) {
+    const { initData } = await request.json();
+    if (!initData) {
       return NextResponse.json({ error: "Неполные данные авторизации Telegram" }, { status: 400 });
     }
 
@@ -14,14 +14,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ошибка конфигурации сервера" }, { status: 500 });
     }
 
-    // Verify Telegram signature
-    const { hash, ...dataToVerify } = authData;
-    const dataCheckArr = Object.keys(dataToVerify)
-      .sort()
-      .map((key) => `${key}=${dataToVerify[key]}`);
-    const dataCheckString = dataCheckArr.join("\n");
+    // Parse initData query string
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash");
+    if (!hash) {
+      return NextResponse.json({ error: "Отсутствует подпись" }, { status: 400 });
+    }
 
-    const secretKey = crypto.createHash("sha256").update(botToken).digest();
+    // Sort parameters and build data check string
+    const keys = Array.from(params.keys()).filter((key) => key !== "hash").sort();
+    const dataCheckString = keys.map((key) => `${key}=${params.get(key)}`).join("\n");
+
+    // Calculate secret key using bot token
+    // HMAC-SHA256 signature verification for Telegram Mini Apps
+    const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
     const hmac = crypto
       .createHmac("sha256", secretKey)
       .update(dataCheckString)
@@ -31,23 +37,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Недействительная подпись авторизации Telegram" }, { status: 400 });
     }
 
+    // Extract user info
+    const userJson = params.get("user");
+    if (!userJson) {
+      return NextResponse.json({ error: "Данные пользователя отсутствуют" }, { status: 400 });
+    }
+
+    const user = JSON.parse(userJson);
+    const userId = user.id;
+    if (!userId) {
+      return NextResponse.json({ error: "Недействительный ID пользователя" }, { status: 400 });
+    }
+
     // Generate secure deterministic email and password for Supabase client sign-in
-    const email = `trueform.tg.${authData.id}@gmail.com`;
+    const email = `trueform.tg.${userId}@gmail.com`;
     
     // We sign the Telegram user ID using the Bot Token to generate a strong password
     const password = crypto
       .createHmac("sha256", secretKey)
-      .update(authData.id.toString())
+      .update(userId.toString())
       .digest("hex");
 
-    const name = authData.first_name + (authData.last_name ? ` ${authData.last_name}` : "");
-    const username = authData.username || "";
+    const name = user.first_name + (user.last_name ? ` ${user.last_name}` : "");
+    const username = user.username || "";
 
     return NextResponse.json({
       email,
       password,
       name,
-      username
+      username,
+      userId
     });
   } catch (error: any) {
     console.error("Telegram auth verification error:", error);
