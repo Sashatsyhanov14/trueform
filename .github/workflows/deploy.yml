@@ -45,6 +45,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/trueform
+            sed -i '/BOT_TOKEN=/d' .env || true
+            echo "BOT_TOKEN=8998010501:AAHT50r13LyAXtJiK6ZmqhEN6F3KzSolVoY" >> .env
+            sed -i '/NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=/d' .env || true
+            echo "NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=trueformai_bot" >> .env
             npm ci --omit=dev
             pm2 reload trueform || pm2 start npm --name "trueform" -- start
             pm2 save
