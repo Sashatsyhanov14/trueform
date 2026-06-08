@@ -410,13 +410,21 @@ export default function Home() {
               });
 
               if (!response.ok) {
-                console.error("TMA auth verification failed");
+                const errText = await response.text();
+                console.error("TMA auth verification failed:", errText);
+                try {
+                  const errJson = JSON.parse(errText);
+                  triggerToast(`Ошибка авторизации: ${errJson.error || errText}`);
+                } catch {
+                  triggerToast(`Ошибка авторизации: ${errText.substring(0, 100)}`);
+                }
                 return;
               }
 
               const credentials = await response.json();
               if (credentials.error) {
                 console.error("TMA credentials error:", credentials.error);
+                triggerToast(`Ошибка верификации: ${credentials.error}`);
                 return;
               }
 
@@ -444,6 +452,7 @@ export default function Home() {
 
                 if (signUpError) {
                   console.error("TMA signUp error:", signUpError);
+                  triggerToast(`Ошибка регистрации: ${signUpError.message}`);
                   return;
                 }
 
@@ -454,6 +463,7 @@ export default function Home() {
 
                 if (retryError) {
                   console.error("TMA retry sign-in error:", retryError);
+                  triggerToast(`Ошибка входа: ${retryError.message}`);
                   return;
                 }
                 signInData = retryData;
@@ -463,8 +473,9 @@ export default function Home() {
                 console.log("TMA: Login successful!");
                 await handleAuthSuccess(signInData.session);
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error("TMA auto-login exception:", err);
+              triggerToast(`Ошибка приложения: ${err?.message || err}`);
             } finally {
               setIsTelegramLoggingIn(false);
             }
