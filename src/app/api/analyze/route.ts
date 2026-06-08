@@ -57,7 +57,7 @@ const getMockReport = () => {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { image, referredBy } = body;
+    const { image, referredBy, userId } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -185,15 +185,39 @@ export async function POST(request: Request) {
 
       const parentScanId = (referredBy && isValidUUID(referredBy)) ? referredBy : null;
 
+      // Determine initial payment status based on user subscription or bypass
+      let paymentStatus = isDemo ? "paid" : "pending";
+      
+      if (userId && isValidUUID(userId)) {
+        try {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("subscription_expires_at, email")
+            .eq("id", userId)
+            .single();
+
+          if (userData) {
+            const hasSub = userData.subscription_expires_at && new Date(userData.subscription_expires_at) > new Date();
+            const isBypassUser = userData.email?.toLowerCase() === "alexandertsyhanov@gmail.com";
+            if (hasSub || isBypassUser) {
+              paymentStatus = "paid";
+            }
+          }
+        } catch (subErr) {
+          console.error("Failed to query user subscription in API:", subErr);
+        }
+      }
+
       const { data, error } = await supabase
         .from("scans")
         .insert({
           image: imageUrl,
           image_url: imageUrl,
           result: report,
-          payment_status: isDemo ? "paid" : "pending",
+          payment_status: paymentStatus,
           shares_count: 0,
-          referred_by_scan_id: parentScanId
+          referred_by_scan_id: parentScanId,
+          user_id: (userId && isValidUUID(userId)) ? userId : null
         })
         .select()
         .single();

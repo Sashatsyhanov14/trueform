@@ -203,6 +203,7 @@ export default function Home() {
   const [regName, setRegName] = useState("");
   const [regTelegram, setRegTelegram] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
   const [isFreePreviewState, setIsFreePreviewState] = useState(false);
   const hasActiveSubscription = subscriptionExpiresAt && new Date(subscriptionExpiresAt) > new Date();
@@ -303,6 +304,10 @@ export default function Home() {
       const email = session?.user?.email || "";
       setRegName(name);
       setRegEmail(email);
+      if (session?.user?.id) {
+        setUserId(session.user.id);
+        localStorage.setItem("trueform_user_id", session.user.id);
+      }
       localStorage.setItem("trueform_user_registered", "true");
       localStorage.setItem("trueform_user_name", name);
       localStorage.setItem("trueform_user_email", email);
@@ -642,9 +647,19 @@ export default function Home() {
         body: JSON.stringify({
           image: image,
           referredBy: referredBy,
+          userId: userId,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
       const data = await response.json();
+      if (!data || !data.result) {
+        throw new Error("Invalid or empty response from API");
+      }
+
       setResult(data.result);
       analytics.trackScanComplete(data.result?.score || 0);
       if (data.scanId) {
@@ -675,17 +690,6 @@ export default function Home() {
       const registered = localStorage.getItem("trueform_user_registered") === "true";
       const hasSub = subscriptionExpiresAt && new Date(subscriptionExpiresAt) > new Date();
       const isBypassUser = regEmail?.toLowerCase() === "alexandertsyhanov@gmail.com";
-      
-      if ((hasSub || isBypassUser) && data.scanId) {
-        try {
-          await supabase
-            .from("scans")
-            .update({ payment_status: "paid" })
-            .eq("id", data.scanId);
-        } catch (dbErr) {
-          console.error("Failed to unlock scan under active subscription:", dbErr);
-        }
-      }
 
       if (!registered) {
         setIsFreePreview(true);
@@ -695,9 +699,9 @@ export default function Home() {
         setAppState("results");
       }
     } catch (e) {
-      console.error(e);
-      setIsFreePreview(true);
-      setAppState("results");
+      console.error("Analysis failed:", e);
+      triggerToast("Ошибка при анализе тела. Пожалуйста, попробуйте еще раз.");
+      setAppState("upload");
     }
   };
 
@@ -708,6 +712,7 @@ export default function Home() {
     if (reg) {
       setRegName(localStorage.getItem("trueform_user_name") || "");
       setRegEmail(localStorage.getItem("trueform_user_email") || "");
+      setUserId(localStorage.getItem("trueform_user_id") || null);
     }
 
     if (typeof window !== "undefined") {
@@ -949,10 +954,12 @@ export default function Home() {
     setIsRegistered(false);
     setRegName("");
     setRegEmail("");
+    setUserId(null);
     setSubscriptionExpiresAt(null);
     localStorage.removeItem("trueform_user_registered");
     localStorage.removeItem("trueform_user_name");
     localStorage.removeItem("trueform_user_email");
+    localStorage.removeItem("trueform_user_id");
     triggerToast("Вы вышли из аккаунта");
     setAppState("landing");
   };
