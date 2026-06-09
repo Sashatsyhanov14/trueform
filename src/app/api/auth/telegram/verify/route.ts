@@ -69,6 +69,52 @@ export async function POST(request: Request) {
     const name = user.first_name + (user.last_name ? ` ${user.last_name}` : "");
     const username = user.username || "";
 
+    // Perform Supabase Auth on the server to bypass frontend IP rate limits and email validation limits
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const { createClient } = require("@supabase/supabase-js");
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        // 1. Attempt to create user via Admin API to bypass rate limits and email confirmation
+        await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: name,
+            username: username,
+            name: name,
+          },
+        });
+        
+        // 2. Sign in to retrieve session
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (!authError && authData?.session) {
+          console.log("TMA Auth: Server-side signup/login successful for", email);
+          return NextResponse.json({
+            session: authData.session,
+            email,
+            password,
+            name,
+            username,
+            userId
+          });
+        } else if (authError) {
+          console.warn("TMA Auth: Server-side sign-in warning:", authError.message);
+        }
+      } catch (supabaseErr) {
+        console.error("TMA Auth: Server-side Supabase error:", supabaseErr);
+      }
+    }
+
+    // Fallback: Return credentials to frontend if server-side auth fails or service key is missing
     return NextResponse.json({
       email,
       password,

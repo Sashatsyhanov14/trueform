@@ -417,6 +417,21 @@ export default function Home() {
             return;
           }
 
+          // If server-side signup/login already succeeded and returned a session, use it!
+          if (credentials.session) {
+            console.log("TMA: Server-side login successful!");
+            const { error: sessionErr } = await supabase.auth.setSession({
+              access_token: credentials.session.access_token,
+              refresh_token: credentials.session.refresh_token,
+            });
+            if (!sessionErr) {
+              await handleAuthSuccess(credentials.session);
+              return;
+            } else {
+              console.warn("setSession error, falling back to manual signIn:", sessionErr.message);
+            }
+          }
+
           const { email, password, name, username } = credentials;
 
           // Try signing in
