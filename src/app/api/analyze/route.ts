@@ -57,7 +57,7 @@ const getMockReport = () => {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { image, referredBy, userId } = body;
+    const { image, referredBy, userId, userTelegram, userName } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -217,7 +217,9 @@ export async function POST(request: Request) {
           payment_status: paymentStatus,
           shares_count: 0,
           referred_by_scan_id: parentScanId,
-          user_id: (userId && isValidUUID(userId)) ? userId : null
+          user_id: (userId && isValidUUID(userId)) ? userId : null,
+          user_telegram: userTelegram || null,
+          user_name: userName || null
         })
         .select()
         .single();

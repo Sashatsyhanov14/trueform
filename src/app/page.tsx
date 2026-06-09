@@ -382,104 +382,47 @@ export default function Home() {
         window.location.hostname === "127.0.0.1"
       );
 
-      const performTelegramAutoLogin = async (initData: string) => {
+      const performTelegramLocalLogin = (tg: any) => {
         try {
           setIsTelegramLoggingIn(true);
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          if (currentSession) {
-            await handleAuthSuccess(currentSession);
-            return;
-          }
-
-          console.log("TMA: Initiating automatic login...");
-          const response = await fetch("/api/auth/telegram/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ initData }),
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            console.error("TMA auth verification failed:", errText);
-            try {
-              const errJson = JSON.parse(errText);
-              triggerToast(`Ошибка авторизации: ${errJson.error || errText}`);
-            } catch {
-              triggerToast(`Ошибка авторизации: ${errText.substring(0, 100)}`);
-            }
-            return;
-          }
-
-          const credentials = await response.json();
-          if (credentials.error) {
-            console.error("TMA credentials error:", credentials.error);
-            triggerToast(`Ошибка верификации: ${credentials.error}`);
-            return;
-          }
-
-          // If server-side signup/login already succeeded and returned a session, use it!
-          if (credentials.session) {
-            console.log("TMA: Server-side login successful!");
-            const { error: sessionErr } = await supabase.auth.setSession({
-              access_token: credentials.session.access_token,
-              refresh_token: credentials.session.refresh_token,
-            });
-            if (!sessionErr) {
-              await handleAuthSuccess(credentials.session);
-              return;
-            } else {
-              console.warn("setSession error, falling back to manual signIn:", sessionErr.message);
+          const tgUser = tg.initDataUnsafe?.user;
+          if (tgUser) {
+            console.log("TMA: Performing local auto-login for user:", tgUser);
+            const tgName = tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : "");
+            const tgUsername = tgUser.username ? `@${tgUser.username}` : `tg-${tgUser.id}`;
+            
+            // Set local authentication state
+            setIsRegistered(true);
+            setRegName(tgName);
+            setRegEmail(tgUsername);
+            setUserId(null); // No Supabase Auth needed
+            
+            localStorage.setItem("trueform_user_registered", "true");
+            localStorage.setItem("trueform_user_name", tgName);
+            localStorage.setItem("trueform_user_email", tgUsername);
+            localStorage.setItem("trueform_tg_user_id", tgUser.id.toString());
+            
+            // Link any pending scan
+            const pendingScan = localStorage.getItem("trueform_pending_scan_id");
+            if (pendingScan) {
+              setAppState("results");
+              setScanId(pendingScan);
+              localStorage.removeItem("trueform_pending_scan_id");
+              
+              supabase
+                .from("scans")
+                .update({
+                  user_name: tgName,
+                  user_telegram: tgUsername
+                })
+                .eq("id", pendingScan)
+                .then(({ error }) => {
+                  if (error) console.error("Failed to link scan on local login:", error);
+                });
             }
           }
-
-          const { email, password, name, username } = credentials;
-
-          // Try signing in
-          let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          // If user does not exist, sign them up
-          if (signInError) {
-            console.log("TMA: Registering new Telegram user...");
-            const { error: signUpError } = await supabase.auth.signUp({
-              email,
-              password,
-              options: {
-                data: {
-                  full_name: name,
-                  username: username,
-                }
-              }
-            });
-
-            if (signUpError) {
-              console.error("TMA signUp error:", signUpError);
-              triggerToast(`Ошибка регистрации: ${signUpError.message}`);
-              return;
-            }
-
-            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-
-            if (retryError) {
-              console.error("TMA retry sign-in error:", retryError);
-              triggerToast(`Ошибка входа: ${retryError.message}`);
-              return;
-            }
-            signInData = retryData;
-          }
-
-          if (signInData?.session) {
-            console.log("TMA: Login successful!");
-            await handleAuthSuccess(signInData.session);
-          }
-        } catch (err: any) {
-          console.error("TMA auto-login exception:", err);
-          triggerToast(`Ошибка приложения: ${err?.message || err}`);
+        } catch (err) {
+          console.error("TMA local login exception:", err);
         } finally {
           setIsTelegramLoggingIn(false);
         }
@@ -498,7 +441,7 @@ export default function Home() {
           }
           setIsTelegramMiniApp(true);
           setIsDetectingTg(false);
-          performTelegramAutoLogin(tg.initData);
+          performTelegramLocalLogin(tg);
           return true;
         }
         return false;
@@ -785,7 +728,7 @@ export default function Home() {
 
   const fetchAnalysis = async () => {
     try {
-      const referredBy = localStorage.getItem("trueform_referred_by");
+      const tgUsername = localStorage.getItem("trueform_user_email") || regEmail;
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -793,6 +736,8 @@ export default function Home() {
           image: image,
           referredBy: referredBy,
           userId: userId,
+          userTelegram: tgUsername || null,
+          userName: regName || null,
         }),
       });
 
@@ -1540,12 +1485,14 @@ export default function Home() {
                       setMainTab("profile");
                     } else {
                       setIsProcessing(true);
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (session?.user?.id) {
+                      const tgUsername = localStorage.getItem("trueform_user_email") || regEmail;
+                      const tgUserId = localStorage.getItem("trueform_tg_user_id");
+
+                      if (tgUserId || tgUsername) {
                         const { data: latestScan } = await supabase
                           .from("scans")
                           .select("*")
-                          .eq("user_id", session.user.id)
+                          .eq("user_telegram", tgUsername)
                           .order("created_at", { ascending: false })
                           .limit(1)
                           .single();
@@ -1561,7 +1508,29 @@ export default function Home() {
                           triggerToast("У вас еще нет сохраненных сканирований. Сделайте первый скан!");
                         }
                       } else {
-                        triggerToast("Ошибка сессии. Пожалуйста, войдите заново.");
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session?.user?.id) {
+                          const { data: latestScan } = await supabase
+                            .from("scans")
+                            .select("*")
+                            .eq("user_id", session.user.id)
+                            .order("created_at", { ascending: false })
+                            .limit(1)
+                            .single();
+                          
+                          if (latestScan?.result) {
+                            setScanId(latestScan.id);
+                            setResult(latestScan.result);
+                            if (latestScan.image_url) setImage(latestScan.image_url);
+                            setIsFreePreview(!(latestScan.payment_status === "paid" || latestScan.payment_status === "shared"));
+                            setAppState("results");
+                            setMainTab("profile");
+                          } else {
+                            triggerToast("У вас еще нет сохраненных сканирований. Сделайте первый скан!");
+                          }
+                        } else {
+                          triggerToast("Ошибка сессии. Пожалуйста, войдите заново.");
+                        }
                       }
                       setIsProcessing(false);
                     }
