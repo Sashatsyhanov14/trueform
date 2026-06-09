@@ -382,111 +382,127 @@ export default function Home() {
         window.location.hostname === "127.0.0.1"
       );
 
-      // Detect and initialize Telegram Mini App
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
-        tg.ready();
-        tg.expand();
-        
-        const initData = tg.initData;
-        if (initData) {
+      const performTelegramAutoLogin = async (initData: string) => {
+        try {
+          setIsTelegramLoggingIn(true);
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (currentSession) {
+            await handleAuthSuccess(currentSession);
+            return;
+          }
+
+          console.log("TMA: Initiating automatic login...");
+          const response = await fetch("/api/auth/telegram/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData }),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.error("TMA auth verification failed:", errText);
+            try {
+              const errJson = JSON.parse(errText);
+              triggerToast(`Ошибка авторизации: ${errJson.error || errText}`);
+            } catch {
+              triggerToast(`Ошибка авторизации: ${errText.substring(0, 100)}`);
+            }
+            return;
+          }
+
+          const credentials = await response.json();
+          if (credentials.error) {
+            console.error("TMA credentials error:", credentials.error);
+            triggerToast(`Ошибка верификации: ${credentials.error}`);
+            return;
+          }
+
+          const { email, password, name, username } = credentials;
+
+          // Try signing in
+          let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          // If user does not exist, sign them up
+          if (signInError) {
+            console.log("TMA: Registering new Telegram user...");
+            const { error: signUpError } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  full_name: name,
+                  username: username,
+                }
+              }
+            });
+
+            if (signUpError) {
+              console.error("TMA signUp error:", signUpError);
+              triggerToast(`Ошибка регистрации: ${signUpError.message}`);
+              return;
+            }
+
+            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+
+            if (retryError) {
+              console.error("TMA retry sign-in error:", retryError);
+              triggerToast(`Ошибка входа: ${retryError.message}`);
+              return;
+            }
+            signInData = retryData;
+          }
+
+          if (signInData?.session) {
+            console.log("TMA: Login successful!");
+            await handleAuthSuccess(signInData.session);
+          }
+        } catch (err: any) {
+          console.error("TMA auto-login exception:", err);
+          triggerToast(`Ошибка приложения: ${err?.message || err}`);
+        } finally {
+          setIsTelegramLoggingIn(false);
+        }
+      };
+
+      let attempts = 0;
+      const detectTelegram = () => {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && tg.initData) {
+          console.log("TMA: Telegram WebApp detected on attempt", attempts);
+          try {
+            tg.ready();
+            tg.expand();
+          } catch (e) {
+            console.warn("Error initializing Telegram WebApp API:", e);
+          }
           setIsTelegramMiniApp(true);
           setIsDetectingTg(false);
-          
-          const performTelegramAutoLogin = async () => {
-            try {
-              setIsTelegramLoggingIn(true);
-              const { data: { session: currentSession } } = await supabase.auth.getSession();
-              if (currentSession) {
-                await handleAuthSuccess(currentSession);
-                return;
-              }
-
-              console.log("TMA: Initiating automatic login...");
-              const response = await fetch("/api/auth/telegram/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ initData }),
-              });
-
-              if (!response.ok) {
-                const errText = await response.text();
-                console.error("TMA auth verification failed:", errText);
-                try {
-                  const errJson = JSON.parse(errText);
-                  triggerToast(`Ошибка авторизации: ${errJson.error || errText}`);
-                } catch {
-                  triggerToast(`Ошибка авторизации: ${errText.substring(0, 100)}`);
-                }
-                return;
-              }
-
-              const credentials = await response.json();
-              if (credentials.error) {
-                console.error("TMA credentials error:", credentials.error);
-                triggerToast(`Ошибка верификации: ${credentials.error}`);
-                return;
-              }
-
-              const { email, password, name, username } = credentials;
-
-              // Try signing in
-              let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-
-              // If user does not exist, sign them up
-              if (signInError) {
-                console.log("TMA: Registering new Telegram user...");
-                const { error: signUpError } = await supabase.auth.signUp({
-                  email,
-                  password,
-                  options: {
-                    data: {
-                      full_name: name,
-                      username: username,
-                    }
-                  }
-                });
-
-                if (signUpError) {
-                  console.error("TMA signUp error:", signUpError);
-                  triggerToast(`Ошибка регистрации: ${signUpError.message}`);
-                  return;
-                }
-
-                const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-                  email,
-                  password,
-                });
-
-                if (retryError) {
-                  console.error("TMA retry sign-in error:", retryError);
-                  triggerToast(`Ошибка входа: ${retryError.message}`);
-                  return;
-                }
-                signInData = retryData;
-              }
-
-              if (signInData?.session) {
-                console.log("TMA: Login successful!");
-                await handleAuthSuccess(signInData.session);
-              }
-            } catch (err: any) {
-              console.error("TMA auto-login exception:", err);
-              triggerToast(`Ошибка приложения: ${err?.message || err}`);
-            } finally {
-              setIsTelegramLoggingIn(false);
-            }
-          };
-
-          performTelegramAutoLogin();
-        } else {
-          setIsDetectingTg(false);
+          performTelegramAutoLogin(tg.initData);
+          return true;
         }
-      } else {
-        setIsDetectingTg(false);
+        return false;
+      };
+
+      let interval: any = null;
+
+      // Try immediate detection
+      if (!detectTelegram()) {
+        interval = setInterval(() => {
+          attempts++;
+          if (detectTelegram() || attempts >= 20) {
+            if (interval) clearInterval(interval);
+            if (attempts >= 20) {
+              console.log("TMA: Telegram WebApp not detected after 20 attempts.");
+              setIsDetectingTg(false);
+            }
+          }
+        }, 50);
       }
 
       // Check for Supabase session and recover state from OAuth
@@ -505,7 +521,11 @@ export default function Home() {
           await handleAuthSuccess(session);
         }
       });
-      return () => subscription.unsubscribe();
+
+      return () => {
+        if (interval) clearInterval(interval);
+        subscription.unsubscribe();
+      };
     }
   }, []);
 
