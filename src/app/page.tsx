@@ -728,6 +728,7 @@ export default function Home() {
 
   const fetchAnalysis = async () => {
     try {
+      const referredBy = localStorage.getItem("trueform_referred_by");
       const tgUsername = localStorage.getItem("trueform_user_email") || regEmail;
       const response = await fetch("/api/analyze", {
         method: "POST",
