@@ -1199,8 +1199,15 @@ export default function Home() {
       const data = await res.json();
 
       if (data.payment_url) {
-        // Redirect user to YooKassa checkout page
-        window.location.href = data.payment_url;
+        // Open payment link via Telegram SDK inside Mini App, or fallback to browser redirect
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && typeof tg.openLink === "function") {
+          console.log("TMA: Opening payment link via Telegram SDK:", data.payment_url);
+          tg.openLink(data.payment_url);
+          setIsProcessing(false); // Stop loading spinner since we opened the link externally
+        } else {
+          window.location.href = data.payment_url;
+        }
       } else {
         triggerToast(data.error || "Ошибка при создании платежа");
         setIsProcessing(false);
