@@ -453,14 +453,14 @@ export default function Home() {
       if (!detectTelegram()) {
         interval = setInterval(() => {
           attempts++;
-          if (detectTelegram() || attempts >= 20) {
+          if (detectTelegram() || attempts >= 10) {
             if (interval) clearInterval(interval);
-            if (attempts >= 20) {
-              console.log("TMA: Telegram WebApp not detected after 20 attempts.");
+            if (attempts >= 10) {
+              console.log("TMA: Telegram WebApp not detected after 10 attempts.");
               setIsDetectingTg(false);
             }
           }
-        }, 50);
+        }, 30);
       }
 
       // Check for Supabase session and recover state from OAuth
