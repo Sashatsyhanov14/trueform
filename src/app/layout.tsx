@@ -93,6 +93,12 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <link rel="preconnect" href="https://telegram.org" />
+        <link rel="dns-prefetch" href="https://telegram.org" />
+        <link rel="preconnect" href="https://ljqnwmtzaoubimoguann.supabase.co" />
+        <link rel="dns-prefetch" href="https://ljqnwmtzaoubimoguann.supabase.co" />
+        <link rel="preconnect" href="https://us.i.posthog.com" />
+        <link rel="dns-prefetch" href="https://us.i.posthog.com" />
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body className="min-h-full flex flex-col">
