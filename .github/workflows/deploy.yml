@@ -49,6 +49,8 @@ jobs:
             echo "BOT_TOKEN=8998010501:AAHT50r13LyAXtJiK6ZmqhEN6F3KzSolVoY" >> .env
             sed -i '/NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=/d' .env || true
             echo "NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=trueformai_bot" >> .env
+            sed -i '/VISION_MODEL=/d' .env || true
+            echo "VISION_MODEL=openai/gpt-4o" >> .env
             npm ci --omit=dev
             pm2 reload trueform || pm2 start npm --name "trueform" -- start
             pm2 save
