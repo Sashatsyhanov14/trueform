@@ -702,14 +702,14 @@ export default function Home() {
     fetchAnalysis();
 
     const logs = [
-      "⚡ Инициализация сверточной нейросети ResNet-50...",
-      "📷 Загрузка и нормализация снимка...",
-      "👤 Построение скелетного графа тела (17 ключевых суставов)...",
-      "📐 Измерение симметрии плеч и угла наклона головы...",
-      "🧬 Оценка плотности и распределения мышечных групп по биометрическому силуэту...",
-      "📊 Расчет примерного процента подкожного жира по индексу плотности...",
-      "📝 Расчет персональной программы тренировок и рекомендаций...",
-      "🔒 Шифрование отчета и формирование результатов..."
+      "⚡ Запуск ИИ-анализа фигуры...",
+      "📷 Обработка фотографии...",
+      "👤 Определение пропорций тела и силуэта...",
+      "📐 Оценка осанки и положения плеч...",
+      "💪 Анализ мышечного тонуса и рельефа...",
+      "📊 Расчёт примерного процента жира...",
+      "📝 Подбор персональных рекомендаций...",
+      "🔒 Формирование отчёта..."
     ];
 
     let currentLogIndex = 0;
@@ -1227,7 +1227,7 @@ export default function Home() {
 
     const shareData = {
       title: "TrueForm AI",
-      text: "🔥 Прохожу биомеханический анализ осанки и физической формы в TrueForm! Мой отчет готов на 97%, нужно поделиться ссылкой с 3 друзьями, чтобы открыть его бесплатно. Попробуй сам:",
+      text: "🔥 Прохожу ИИ-анализ физической формы в TrueForm! Мой отчёт готов на 97%, нужно поделиться ссылкой с 3 друзьями, чтобы открыть его бесплатно. Попробуй сам:",
       url: shareUrl,
     };
 
@@ -1336,7 +1336,7 @@ export default function Home() {
               TrueForm AI
             </h1>
             <h2 className="text-base font-semibold text-cyan-400">
-              Биомеханический анализ тела
+              ИИ-анализ физической формы
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed pt-2">
               Данный сервис доступен исключительно внутри нашего официального Telegram Mini App. Пожалуйста, перейдите в Telegram-бота для проведения анализа.
@@ -1667,7 +1667,7 @@ export default function Home() {
                   disabled={isUploadingImage}
                   className={`w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-black font-bold py-4 px-6 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] transition transform active:scale-95 flex items-center justify-center gap-2 text-base ${isUploadingImage ? 'opacity-50 cursor-not-allowed animate-pulse' : 'cursor-pointer'}`}
                 >
-                  {isUploadingImage ? "Загрузка изображения..." : "Запустить биомеханический анализ"}
+                  {isUploadingImage ? "Загрузка изображения..." : "Запустить анализ формы"}
                   <ArrowRight className="w-5 h-5 stroke-[2.5]" />
                 </button>
               )}
@@ -1883,7 +1883,7 @@ export default function Home() {
               {activeTab === "posture" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                    <span className="text-slate-400 font-semibold text-sm">Оценка плечевого пояса и шеи</span>
+                    <span className="text-slate-400 font-semibold text-sm">Осанка и положение тела</span>
                     <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg text-xs font-bold">
                       {result.grades.posture.score}% ({result.grades.posture.status})
                     </span>
@@ -1920,8 +1920,8 @@ export default function Home() {
                       <circle cx="33" cy="41" r="3" fill="#ef4444" />
                       <circle cx="50" cy="31" r="2.5" fill="#ef4444" />
                       
-                      <text x="5" y="15" fill="#ef4444" fontSize="6" fontFamily="sans-serif">Шея: наклон ~12°</text>
-                      <text x="5" y="25" fill="#ef4444" fontSize="6" fontFamily="sans-serif">Плечи: наклон ~1.5°</text>
+                      <text x="5" y="15" fill="#ef4444" fontSize="6" fontFamily="sans-serif">Шея: вперёд</text>
+                      <text x="5" y="25" fill="#ef4444" fontSize="6" fontFamily="sans-serif">Плечи: наклон</text>
                     </svg>
                   </div>
 
@@ -2334,7 +2334,7 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-white">План тренировок</h3>
-                    <p className="text-[10px] text-slate-500">Персональные рекомендации на основе биомеханического анализа</p>
+                    <p className="text-[10px] text-slate-500">Персональные рекомендации на основе анализа твоей формы</p>
                   </div>
                 </div>
 
@@ -2342,10 +2342,10 @@ export default function Home() {
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                    Заключение кинезиолога
+                    Заключение тренера
                   </h4>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Физическая форма находится в хорошем тонусе (рейтинг {result.score}%). Выявлен небольшой наклон плеч (~1.5°) и наклон головы вперед на ~10-12°. Рекомендуется целенаправленная гипертрофия мышц спины и дельтовидных для создания симметричного и мощного V-силуэта.
+                    Твой общий рейтинг формы — {result.score}%. {result.grades.body.details.split('.')[0]}. {result.grades.muscles.details.split('.')[0]}.
                   </p>
                 </div>
 
