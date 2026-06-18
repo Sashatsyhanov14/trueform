@@ -34,6 +34,27 @@
 - Лимиты использования
 - Tracking прогресса
 
+### 4. Платежная система (ЮKassa)
+Полностью интегрированная система оплаты:
+- **Разовый платеж**: 490₽ за анализ
+- **Webhook обработка**: автоматическая разблокировка результатов после оплаты
+- **Mock режим**: тестирование без реальных платежей
+- **API endpoints**:
+  - `POST /api/payment` - создание платежа
+  - `POST /api/payment/webhook` - обработка уведомлений от ЮKassa
+  - `GET /api/payment/mock-checkout` - симуляция оплаты
+
+**Database schema:**
+```sql
+payments (
+  scan_id - связь со сканом
+  yookassa_payment_id - ID платежа в ЮKassa
+  amount - сумма (490.00)
+  status - pending/succeeded
+  payment_url - ссылка на оплату
+)
+```
+
 ## 🎯 Целевая аудитория (предполагаемая)
 
 - Фитнес-энтузиасты ищущие объективную оценку
@@ -70,11 +91,22 @@ npm install
 
 Создайте `.env.local`:
 ```env
+# Database
 DATABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_key
+
+# AI
 OPENAI_API_KEY=your_openai_key
+
+# Payments (ЮKassa)
+YOOKASSA_SHOP_ID=your_shop_id
+YOOKASSA_SECRET_KEY=your_secret_key
+
+# App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+**Примечание:** Если переменные ЮKassa не заданы, автоматически активируется mock-режим для тестирования.
 
 ### Запуск
 
@@ -122,17 +154,19 @@ vercel
 - ✅ Загрузка фото
 - ✅ AI анализ (базовый)
 - ✅ Генерация отчетов
+- ✅ **Интеграция ЮKassa** - полная система оплаты (490₽ за анализ)
+- ✅ **Webhook обработка** - автоматическая разблокировка результатов
+- ✅ **Mock режим** - тестирование без реальных платежей
 
 **В планах:**
-- ⏳ Система подписок (Stripe)
 - ⏳ История сканов
 - ⏳ Отслеживание прогресса
+- ⏳ Subscription модель (ежемесячная)
 - ⏳ Mobile app
 
 **Что не реализовано:**
-- ❌ Монетизация
-- ❌ Пейволлы
-- ❌ Marketing/landing
+- ❌ Marketing/landing страница
+- ❌ Recurring подписки (только разовый платеж)
 - ❌ Mobile приложение
 
 ## Disclaimer
